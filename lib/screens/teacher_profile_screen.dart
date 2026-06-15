@@ -1,36 +1,36 @@
-// lib/screens/edit_profile_screen.dart
+// lib/screens/teacher_profile_screen.dart
 import 'package:flutter/material.dart';
-import '../models/student.dart';
+import '../models/student.dart'; // Import để lấy model Teacher
 
-class EditProfileScreen extends StatefulWidget {
-  final Student student;
+class TeacherProfileScreen extends StatefulWidget {
+  final Teacher teacher;
 
-  const EditProfileScreen({super.key, required this.student});
+  const TeacherProfileScreen({super.key, required this.teacher});
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  State<TeacherProfileScreen> createState() => _TeacherProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
+class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   late TextEditingController _idController;
   late TextEditingController _nameController;
-  late TextEditingController _classController;
+  late TextEditingController _phoneController;
   late TextEditingController _passwordController;
 
   @override
   void initState() {
     super.initState();
-    _idController = TextEditingController(text: widget.student.id);
-    _nameController = TextEditingController(text: widget.student.name);
-    _classController = TextEditingController(text: widget.student.className);
-    _passwordController = TextEditingController(text: widget.student.password);
+    _idController = TextEditingController(text: widget.teacher.id);
+    _nameController = TextEditingController(text: widget.teacher.name);
+    _phoneController = TextEditingController(text: widget.teacher.phone);
+    _passwordController = TextEditingController(text: widget.teacher.password);
   }
 
   @override
   void dispose() {
     _idController.dispose();
     _nameController.dispose();
-    _classController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -39,8 +39,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hồ sơ & Thẻ Học Sinh', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.green,
+        title: const Text('Hồ sơ Giáo viên', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.blue[800],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
@@ -52,13 +52,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            // ================= THẺ HỌC SINH ĐIỆN TỬ =================
+            // ================= THẺ GIÁO VIÊN ĐIỆN TỬ =================
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.green.shade700, Colors.teal.shade400],
+                  colors: [Colors.blue.shade800, Colors.lightBlue.shade400],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -69,13 +69,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               child: Row(
                 children: [
-                  // Cột trái: Ảnh đại diện và Mã QR
                   Column(
                     children: [
                       const CircleAvatar(
                         radius: 40,
                         backgroundColor: Colors.white,
-                        child: Icon(Icons.person, size: 50, color: Colors.green),
+                        child: Icon(Icons.work, size: 40, color: Colors.blue),
                       ),
                       const SizedBox(height: 15),
                       Container(
@@ -84,27 +83,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        // Mã QR giả lập
                         child: const Icon(Icons.qr_code_2, size: 60, color: Colors.black),
                       ),
                     ],
                   ),
                   const SizedBox(width: 20),
-                  // Cột phải: Thông tin thẻ
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('THẺ HỌC SINH', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                        const Text('THẺ CÁN BỘ / GIÁO VIÊN', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
                         const SizedBox(height: 5),
-                        Text(widget.student.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                        Text(widget.teacher.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                         const Divider(color: Colors.white54),
                         const SizedBox(height: 5),
-                        Text('Lớp: ${widget.student.className}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                        Text('Mã GV: ${widget.teacher.id}', style: const TextStyle(color: Colors.white, fontSize: 16)),
                         const SizedBox(height: 5),
-                        Text('Mã HS: ${widget.student.id}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                        Text('SĐT: ${widget.teacher.phone}', style: const TextStyle(color: Colors.white, fontSize: 16)),
                         const SizedBox(height: 15),
-                        const Text('Trạng thái: Đang theo học', style: TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic)),
+                        const Text('Trạng thái: Đang công tác', style: TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic)),
                       ],
                     ),
                   )
@@ -120,9 +117,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 15),
 
             // ================= FORM CHỈNH SỬA =================
-            _buildProfileField('Mã Học Sinh:', _idController, isReadOnly: true),
+            _buildProfileField('Mã Giáo Viên:', _idController, isReadOnly: true), // Mã không được sửa
             _buildProfileField('Họ và Tên:', _nameController),
-            _buildProfileField('Lớp:', _classController, isReadOnly: true), // Lớp không nên tự sửa
+            _buildProfileField('Số điện thoại:', _phoneController),
             _buildProfileField('Mật khẩu:', _passwordController, isPassword: true),
 
             const SizedBox(height: 30),
@@ -132,13 +129,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
+                  // Cập nhật dữ liệu vào model
                   setState(() {
-                    widget.student.name = _nameController.text;
-                    widget.student.password = _passwordController.text;
+                    widget.teacher.name = _nameController.text;
+                    widget.teacher.phone = _phoneController.text;
+                    widget.teacher.password = _passwordController.text;
                   });
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Hồ sơ đã được cập nhật!'), backgroundColor: Colors.green),
+                    const SnackBar(content: Text('Hồ sơ Giáo viên đã được cập nhật!'), backgroundColor: Colors.blue),
                   );
                   Navigator.pop(context);
                 },
