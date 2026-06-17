@@ -63,3 +63,88 @@ class SchoolEvent {
 List<SchoolEvent> mockEvents = [
   SchoolEvent(id: 'EV01', title: 'Thi học kỳ 1 môn Toán', date: '20/12/2026', description: 'Học sinh có mặt trước 15 phút tại phòng đa năng.', type: 'Lịch thi'),
 ];
+// Thêm vào dưới cùng file lib/models/student.dart
+
+// ================= 7. DỮ LIỆU BẢNG TIN THÔNG BÁO (MỚI) =================
+class NotificationPost {
+  String id;
+  String title;
+  String content;
+  String date;
+  String category; // 'Chung', 'Học phí', 'Lịch thi', 'Sự kiện'
+
+  NotificationPost({
+    required this.id,
+    required this.title,
+    required this.content,
+    required this.date,
+    required this.category,
+  });
+}
+
+// Danh sách bài đăng mẫu trên Bảng tin
+List<NotificationPost> mockNotifications = [
+  NotificationPost(
+    id: 'N01',
+    title: 'Thông báo đóng học phí học kỳ phụ 2026',
+    content: 'Nhà trường thông báo thời hạn hoàn thành học phí học kỳ phụ từ ngày 20/06 đến hết ngày 30/06/2026. Sinh viên nộp qua cổng thanh toán trực tuyến hoặc chuyển khoản ngân hàng.',
+    date: '15/06/2026',
+    category: 'Học phí',
+  ),
+  NotificationPost(
+    id: 'N02',
+    title: 'Lịch thi tốt nghiệp và khảo sát chất lượng đầu ra',
+    content: 'Kỳ thi khảo sát tiếng Anh và Tin học đầu ra dành cho sinh viên năm cuối sẽ diễn ra vào hai ngày thứ 7 và Chủ Nhật tuần sau. Danh sách phòng thi cụ thể đã được cập nhật tại văn phòng khoa.',
+    date: '14/06/2026',
+    category: 'Lịch thi',
+  ),
+  NotificationPost(
+    id: 'N03',
+    title: 'Phát động cuộc thi Sáng tạo Robot 2026',
+    content: 'Chào mừng ngày thành lập trường, Đoàn thanh niên phát động cuộc thi Robocon cấp trường với giải thưởng lên đến 20 triệu đồng. Hạn cuối đăng ký đội thi là ngày 05/07/2026.',
+    date: '12/06/2026',
+    category: 'Sự kiện',
+  ),
+];
+// ================= 8. DỮ LIỆU BÀI TẬP VỀ NHÀ (MỚI) =================
+class Assignment {
+  String id;
+  String title;
+  String description;
+  String className;
+  String subject;
+  String deadline;
+  String teacherName;
+
+  Assignment({
+    required this.id, required this.title, required this.description,
+    required this.className, required this.subject, required this.deadline, required this.teacherName
+  });
+}
+
+class Submission {
+  String id;
+  String assignmentId;
+  String studentId;
+  String studentName;
+  String content; // Nội dung văn bản hoặc Link bài làm
+  String submittedAt;
+  double? grade;  // Điểm số (có thể null nếu chưa chấm)
+  String? feedback; // Lời phê
+
+  Submission({
+    required this.id, required this.assignmentId, required this.studentId, required this.studentName,
+    required this.content, required this.submittedAt, this.grade, this.feedback
+  });
+}
+
+// Dữ liệu mẫu ban đầu
+List<Assignment> mockAssignments = [
+  Assignment(
+      id: 'A01', title: 'Viết bài luận Tiếng Anh (Chủ đề Môi trường)',
+      description: 'Các em viết một bài luận dài khoảng 250 từ. Có thể làm ra file Word rồi dán link Google Drive vào đây nhé.',
+      className: '10A1', subject: 'Tiếng Anh', deadline: '2026-06-20 23:59', teacherName: 'Nguyễn Văn A'
+  ),
+];
+
+List<Submission> mockSubmissions = [];

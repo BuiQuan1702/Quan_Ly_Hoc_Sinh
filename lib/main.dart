@@ -1,23 +1,40 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart'; // Import màn hình login
+import 'package:google_fonts/google_fonts.dart';
+import 'screens/login_screen.dart';
 
 void main() {
-  runApp(const StudentManagerApp());
+  runApp(const MyApp());
 }
 
-class StudentManagerApp extends StatelessWidget {
-  const StudentManagerApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'School Management',
       debugShowCheckedModeBanner: false,
-      title: 'Quản Lý Học Sinh',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        // Đổi toàn bộ font chữ của app sang Quicksand
+        textTheme: GoogleFonts.quicksandTextTheme(Theme.of(context).textTheme),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blueAccent,
+          background: const Color(0xFFF5F7FA),
+        ),
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          iconTheme: IconThemeData(color: Colors.black87),
+          titleTextStyle: TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        cardTheme: CardTheme(
+          elevation: 2,
+          shadowColor: Colors.black12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
       ),
-      // Màn hình khởi chạy đầu tiên là LoginScreen
       home: const LoginScreen(),
     );
   }

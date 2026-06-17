@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../models/student.dart';
 import 'edit_profile_screen.dart';
-import 'events_user_tab.dart'; // KHÔI PHỤC IMPORT TAB SỰ KIỆN USER
+import 'events_user_tab.dart';
+import 'leave_request_student_screen.dart';
+import 'news_feed_screen.dart';
+import 'assignment_student_screen.dart';
 
 class UserScreen extends StatefulWidget {
   final Student loggedInStudent;
@@ -19,30 +22,77 @@ class _UserScreenState extends State<UserScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay = DateTime.now();
 
+  // ================= BẢNG NHẬP MÃ ĐIỂM DANH =================
   void _showStudentAttendanceDialog(BuildContext context, Lesson lesson) {
-    TextEditingController codeController = TextEditingController(); String myId = widget.loggedInStudent.id;
+    TextEditingController codeController = TextEditingController();
+    String myId = widget.loggedInStudent.id;
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
           builder: (context, setDialogState) {
             bool hasAttended = (lessonAttendedStudents[lesson.id] ?? []).contains(myId);
             return AlertDialog(
-              title: Text('Điểm danh: ${lesson.subject}'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Column(
+                children: [
+                  Icon(hasAttended ? Icons.check_circle : Icons.qr_code_scanner,
+                      size: 50, color: hasAttended ? Colors.green : Colors.blueAccent),
+                  const SizedBox(height: 10),
+                  Text('Điểm danh', style: TextStyle(color: hasAttended ? Colors.green : Colors.blueAccent, fontWeight: FontWeight.bold)),
+                ],
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Thời gian: ${lesson.time}'),
-                  if (hasAttended) const Text('ĐÃ ĐIỂM DANH', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
-                  else TextField(controller: codeController, decoration: const InputDecoration(labelText: 'Nhập mã')),
+                  Text(lesson.subject, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  const SizedBox(height: 5),
+                  Text('Thời gian: ${lesson.time}', style: const TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 20),
+                  if (hasAttended)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                      decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(30)),
+                      child: const Text('ĐÃ ĐIỂM DANH THÀNH CÔNG', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                    )
+                  else
+                    TextField(
+                        controller: codeController,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 5),
+                        decoration: InputDecoration(
+                            hintText: '----',
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)
+                        )
+                    ),
                 ],
               ),
+              actionsAlignment: MainAxisAlignment.center,
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
-                if (!hasAttended) ElevatedButton(onPressed: () {
-                  if (codeController.text == lessonAttendanceCodes[lesson.id]) {
-                    setState(() { lessonAttendedStudents[lesson.id] ??= []; lessonAttendedStudents[lesson.id]!.add(myId); }); Navigator.pop(context);
-                  }
-                }, child: const Text('Xác nhận'))
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng', style: TextStyle(color: Colors.grey))),
+                if (!hasAttended)
+                  ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)
+                      ),
+                      onPressed: () {
+                        if (codeController.text == lessonAttendanceCodes[lesson.id]) {
+                          setState(() {
+                            lessonAttendedStudents[lesson.id] ??= [];
+                            lessonAttendedStudents[lesson.id]!.add(myId);
+                          });
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Điểm danh thành công!'), backgroundColor: Colors.green));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mã không hợp lệ!'), backgroundColor: Colors.redAccent));
+                        }
+                      },
+                      child: const Text('Xác nhận', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                  )
               ],
             );
           }
@@ -50,8 +100,12 @@ class _UserScreenState extends State<UserScreen> {
     );
   }
 
+  // ================= LƯỚI THỜI KHÓA BIỂU ĐẸP MẮT =================
   Widget _buildTimetableGrid(List<DateTime> weekDates) {
-    const double hourHeight = 50.0; const double dayWidth = 95.0; const double timeColumnWidth = 45.0; const double headerHeight = 40.0;
+    const double hourHeight = 65.0;
+    const double dayWidth = 110.0;
+    const double timeColumnWidth = 55.0;
+    const double headerHeight = 55.0;
     const int startHour = 6; const int endHour = 18; const int hourCount = endHour - startHour + 1;
     final List<String> days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
 
@@ -61,27 +115,27 @@ class _UserScreenState extends State<UserScreen> {
         child: SingleChildScrollView(
           scrollDirection: Axis.vertical,
           child: Container(
-            width: timeColumnWidth + days.length * dayWidth, height: headerHeight + hourCount * hourHeight, color: Colors.white,
+            width: timeColumnWidth + days.length * dayWidth,
+            height: headerHeight + hourCount * hourHeight,
+            color: const Color(0xFFF9FAFC),
             child: Stack(
               children: [
-                for (int i = 0; i <= hourCount; i++) Positioned(top: headerHeight + i * hourHeight, left: 0, right: 0, child: Container(height: 1, color: Colors.grey[200])),
-                for (int i = 0; i <= days.length; i++) Positioned(top: 0, bottom: 0, left: timeColumnWidth + i * dayWidth, child: Container(width: 1, color: Colors.grey[200])),
-                for (int i = 0; i < hourCount; i++) Positioned(top: headerHeight + i * hourHeight, left: 0, width: timeColumnWidth, height: hourHeight, child: Center(child: Text('${startHour + i}:00', style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.bold)))),
-
+                for (int i = 0; i <= hourCount; i++)
+                  Positioned(top: headerHeight + i * hourHeight, left: 0, right: 0, child: Container(height: 1, color: Colors.grey.shade200)),
+                for (int i = 0; i <= days.length; i++)
+                  Positioned(top: 0, bottom: 0, left: timeColumnWidth + i * dayWidth, child: Container(width: 1, color: Colors.grey.shade200)),
+                for (int i = 0; i < hourCount; i++)
+                  Positioned(top: headerHeight + i * hourHeight, left: 0, width: timeColumnWidth, height: hourHeight, child: Center(child: Text('${startHour + i}:00', style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.bold)))),
                 for (int i = 0; i < days.length; i++)
                   Positioned(
                     top: 0, left: timeColumnWidth + i * dayWidth, width: dayWidth, height: headerHeight,
                     child: Container(
-                      color: Colors.blue[50],
+                      decoration: BoxDecoration(color: Colors.blue.shade50, border: Border(bottom: BorderSide(color: Colors.blue.shade100, width: 2))),
                       child: Center(
-                        child: Text(
-                          '${days[i]}\n(${weekDates[i].day.toString().padLeft(2, '0')}/${weekDates[i].month.toString().padLeft(2, '0')})',
-                          textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[800], fontSize: 12),
-                        ),
+                        child: Text('${days[i]}\n${weekDates[i].day.toString().padLeft(2, '0')}/${weekDates[i].month.toString().padLeft(2, '0')}', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade800, fontSize: 12)),
                       ),
                     ),
                   ),
-
                 for (var lesson in mockTimetable.where((l) => l.className == widget.loggedInStudent.className))
                   if (weekDates.any((d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}" == lesson.date))
                     _buildLessonBlock(lesson, startHour, hourHeight, dayWidth, timeColumnWidth, headerHeight, weekDates),
@@ -98,7 +152,6 @@ class _UserScreenState extends State<UserScreen> {
       final parts = lesson.time.split('-'); if (parts.length != 2) return const SizedBox.shrink();
       final startH = int.parse(parts[0].trim().split(':')[0]); final startM = int.parse(parts[0].trim().split(':')[1]);
       final endH = int.parse(parts[1].trim().split(':')[0]); final endM = int.parse(parts[1].trim().split(':')[1]);
-
       int dayIndex = weekDates.indexWhere((d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}" == lesson.date);
       if (dayIndex == -1) return const SizedBox.shrink();
 
@@ -106,23 +159,30 @@ class _UserScreenState extends State<UserScreen> {
       final height = ((endH - startH) * hHeight) + ((endM - startM) / 60 * hHeight);
       final left = tWidth + dayIndex * dWidth;
 
-      Color bgColor = Colors.blue.shade100; Color borderColor = Colors.blue.shade700;
-      if (lesson.subject.toLowerCase().contains('tiếng anh')) { bgColor = Colors.orange.shade100; borderColor = Colors.orange.shade700; }
-      else if (lesson.subject.toLowerCase().contains('.net') || lesson.subject.toLowerCase().contains('vật lý')) { bgColor = Colors.red.shade100; borderColor = Colors.red.shade700; }
+      Color bgColor = Colors.blue.shade50; Color borderColor = Colors.blueAccent; Color iconColor = Colors.blueAccent;
+      if (lesson.subject.toLowerCase().contains('anh')) { bgColor = Colors.orange.shade50; borderColor = Colors.orange; iconColor = Colors.orange; }
+      else if (lesson.subject.toLowerCase().contains('lý') || lesson.subject.toLowerCase().contains('.net')) { bgColor = Colors.pink.shade50; borderColor = Colors.pinkAccent; iconColor = Colors.pinkAccent; }
 
       return Positioned(
         top: top, left: left, width: dWidth, height: height,
         child: InkWell(
           onTap: () => _showStudentAttendanceDialog(context, lesson),
           child: Container(
-            margin: const EdgeInsets.all(2), padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: bgColor, border: Border(left: BorderSide(color: borderColor, width: 4)), borderRadius: BorderRadius.circular(4)),
+            margin: const EdgeInsets.all(3), padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+                color: bgColor,
+                border: Border(left: BorderSide(color: borderColor, width: 4)),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(2, 2))]
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(lesson.subject, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: borderColor), maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4), Text(lesson.time, style: const TextStyle(fontSize: 11, color: Colors.black87)), const Spacer(),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [Icon(Icons.touch_app, size: 14, color: borderColor)]),
+                Text(lesson.subject, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Text(lesson.time, style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+                const Spacer(),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [Icon(Icons.touch_app, size: 14, color: iconColor)]),
               ],
             ),
           ),
@@ -133,73 +193,99 @@ class _UserScreenState extends State<UserScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ================= TAB 1: DANH SÁCH LỚP =================
     final List<Student> classmates = mockStudents.where((s) => s.className == widget.loggedInStudent.className).toList();
-
-    Widget studentListTab = ListView.builder(
-      itemCount: classmates.length,
-      itemBuilder: (context, index) => Card(child: ListTile(title: Text(classmates[index].name), subtitle: Text('Mã HS: ${classmates[index].id}'))),
+    Widget studentListTab = Column(
+      children: [
+        Container(
+          width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
+          child: Column(
+            children: [
+              Text('LỚP CỦA TÔI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.grey.shade500)),
+              Text(widget.loggedInStudent.className, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.blueAccent)),
+              Text('Sĩ số: ${classmates.length} học sinh', style: const TextStyle(fontSize: 14, color: Colors.blueGrey)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: classmates.length,
+            itemBuilder: (context, index) => Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))]),
+              child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                  leading: CircleAvatar(backgroundColor: Colors.blueAccent.withOpacity(0.1), child: const Icon(Icons.person, color: Colors.blueAccent)),
+                  title: Text(classmates[index].name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Mã HS: ${classmates[index].id}', style: TextStyle(color: Colors.grey.shade600))
+              ),
+            ),
+          ),
+        ),
+      ],
     );
 
+    // ================= TAB 2: THỜI KHÓA BIỂU =================
     DateTime startOfWeek = _selectedDay!.subtract(Duration(days: _selectedDay!.weekday - 1));
     List<DateTime> weekDates = List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
-
     Widget timetableTab = Column(
       children: [
-        TableCalendar(
-          firstDay: DateTime.utc(2025, 1, 1), lastDay: DateTime.utc(2030, 12, 31),
-          focusedDay: _focusedDay, calendarFormat: _calendarFormat,
-          startingDayOfWeek: StartingDayOfWeek.monday,
-          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-          onDaySelected: (selectedDay, focusedDay) { setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; }); },
-          onFormatChanged: (format) { setState(() { _calendarFormat = format; }); },
-          onPageChanged: (focusedDay) { _focusedDay = focusedDay; },
-          calendarStyle: const CalendarStyle(selectedDecoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+        Container(
+          decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))]),
+          child: TableCalendar(
+            firstDay: DateTime.utc(2025, 1, 1), lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay, calendarFormat: _calendarFormat, startingDayOfWeek: StartingDayOfWeek.monday,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: (selectedDay, focusedDay) { setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; }); },
+            onFormatChanged: (format) { setState(() { _calendarFormat = format; }); },
+            onPageChanged: (focusedDay) { _focusedDay = focusedDay; },
+            calendarStyle: const CalendarStyle(
+              selectedDecoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
+              todayDecoration: BoxDecoration(color: Colors.lightBlueAccent, shape: BoxShape.circle),
+            ),
+          ),
         ),
         Expanded(child: _buildTimetableGrid(weekDates)),
       ],
     );
 
-    // ================= TAB BẢNG ĐIỂM (HỆ SỐ) =================
-    double totalGpa = 0;
-    int subjectCount = 0;
-
+    // ================= TAB 3: BẢNG ĐIỂM (GRADIENT & PASTEL) =================
+    double totalGpa = 0; int subjectCount = 0;
     widget.loggedInStudent.grades.forEach((subject, gradeTypes) {
-      double sum15m = (gradeTypes['Miệng / 15 Phút'] ?? []).fold(0, (prev, curr) => prev + curr);
-      int count15m = (gradeTypes['Miệng / 15 Phút'] ?? []).length;
-      double sum1t = (gradeTypes['1 Tiết / Giữa Kỳ'] ?? []).fold(0, (prev, curr) => prev + curr);
-      int count1t = (gradeTypes['1 Tiết / Giữa Kỳ'] ?? []).length;
-      double sumHk = (gradeTypes['Học Kỳ'] ?? []).fold(0, (prev, curr) => prev + curr);
-      int countHk = (gradeTypes['Học Kỳ'] ?? []).length;
-
+      double sum15m = (gradeTypes['Miệng / 15 Phút'] ?? []).fold(0, (prev, curr) => prev + curr); int count15m = (gradeTypes['Miệng / 15 Phút'] ?? []).length;
+      double sum1t = (gradeTypes['1 Tiết / Giữa Kỳ'] ?? []).fold(0, (prev, curr) => prev + curr); int count1t = (gradeTypes['1 Tiết / Giữa Kỳ'] ?? []).length;
+      double sumHk = (gradeTypes['Học Kỳ'] ?? []).fold(0, (prev, curr) => prev + curr); int countHk = (gradeTypes['Học Kỳ'] ?? []).length;
       int totalWeights = count15m * 1 + count1t * 2 + countHk * 3;
-      if (totalWeights > 0) {
-        double subjectAvg = (sum15m * 1 + sum1t * 2 + sumHk * 3) / totalWeights;
-        totalGpa += subjectAvg;
-        subjectCount++;
-      }
+      if (totalWeights > 0) { double subjectAvg = (sum15m * 1 + sum1t * 2 + sumHk * 3) / totalWeights; totalGpa += subjectAvg; subjectCount++; }
     });
-
     double finalGpa = subjectCount > 0 ? totalGpa / subjectCount : 0.0;
 
     Widget gradesTab = Column(
       children: [
         Container(
-          width: double.infinity, margin: const EdgeInsets.all(15), padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(gradient: const LinearGradient(colors: [Colors.green, Colors.teal]), borderRadius: BorderRadius.circular(15), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 5, offset: Offset(0, 3))]),
+          width: double.infinity, margin: const EdgeInsets.all(16), padding: const EdgeInsets.symmetric(vertical: 30),
+          decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Colors.blueAccent, Colors.lightBlueAccent], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [BoxShadow(color: Colors.blueAccent.withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8))]
+          ),
           child: Column(
             children: [
-              const Text('ĐIỂM TRUNG BÌNH (GPA)', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('ĐIỂM TRUNG BÌNH (GPA)', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1)),
               const SizedBox(height: 10),
-              Text(finalGpa.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold)),
+              Text(finalGpa.toStringAsFixed(2), style: const TextStyle(color: Colors.white, fontSize: 56, fontWeight: FontWeight.w900)),
             ],
           ),
         ),
-        const Padding(padding: EdgeInsets.symmetric(horizontal: 15.0, vertical: 5), child: Align(alignment: Alignment.centerLeft, child: Text('Chi tiết điểm các môn:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)))),
+        const Padding(padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10), child: Align(alignment: Alignment.centerLeft, child: Text('Chi tiết điểm các môn', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)))),
         Expanded(
           child: widget.loggedInStudent.grades.isEmpty
-              ? const Center(child: Text('Bạn chưa có điểm số nào', style: TextStyle(color: Colors.grey)))
+              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.assessment_outlined, size: 60, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('Chưa có điểm số nào', style: TextStyle(color: Colors.grey))]))
               : ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             children: widget.loggedInStudent.grades.entries.map((entry) {
               var types = entry.value;
               double s15 = (types['Miệng / 15 Phút'] ?? []).fold(0, (p, c) => p + c); int c15 = (types['Miệng / 15 Phút'] ?? []).length;
@@ -207,25 +293,30 @@ class _UserScreenState extends State<UserScreen> {
               double sHk = (types['Học Kỳ'] ?? []).fold(0, (p, c) => p + c); int cHk = (types['Học Kỳ'] ?? []).length;
               int wTotal = c15 * 1 + c1t * 2 + cHk * 3;
               double subAvg = wTotal > 0 ? (s15 * 1 + s1t * 2 + sHk * 3) / wTotal : 0.0;
+              Color badgeColor = subAvg >= 8.0 ? Colors.green : (subAvg >= 5.0 ? Colors.orange : Colors.redAccent);
 
-              return Card(
-                elevation: 1, margin: const EdgeInsets.only(bottom: 10),
-                child: ExpansionTile(
-                  leading: CircleAvatar(backgroundColor: subAvg >= 8.0 ? Colors.green.shade100 : (subAvg >= 5.0 ? Colors.orange.shade100 : Colors.red.shade100), child: Icon(Icons.book, color: subAvg >= 8.0 ? Colors.green : (subAvg >= 5.0 ? Colors.orange : Colors.red))),
-                  title: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  trailing: Text(wTotal > 0 ? subAvg.toStringAsFixed(1) : '-', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: subAvg >= 8.0 ? Colors.green : (subAvg >= 5.0 ? Colors.orange : Colors.red))),
-                  children: types.entries.map((tEntry) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(tEntry.key, style: const TextStyle(fontSize: 14, color: Colors.black54)),
-                          Text(tEntry.value.isEmpty ? '-' : tEntry.value.join(", "), style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))]),
+                child: Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    leading: CircleAvatar(backgroundColor: badgeColor.withOpacity(0.1), child: Icon(Icons.menu_book, color: badgeColor)),
+                    title: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: badgeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(wTotal > 0 ? subAvg.toStringAsFixed(1) : '-', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: badgeColor))),
+                    children: types.entries.map((tEntry) {
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(tEntry.key, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                            Text(tEntry.value.isEmpty ? '-' : tEntry.value.join(", "), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               );
             }).toList(),
@@ -234,55 +325,75 @@ class _UserScreenState extends State<UserScreen> {
       ],
     );
 
-    // KHÔI PHỤC ĐỦ 4 TAB CỐ ĐỊNH CHO HỌC SINH
-    final tabs = [studentListTab, timetableTab, gradesTab, const EventsUserTab()];
+    final tabs = [studentListTab, timetableTab, gradesTab, AssignmentStudentScreen(student: widget.loggedInStudent)];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text('Học Sinh - Lớp ${widget.loggedInStudent.className}'),
-        backgroundColor: Colors.green,
-        // ĐÃ KHÔI PHỤC: Nút bấm mở giao diện chỉnh sửa hồ sơ
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Colors.blueAccent, Colors.lightBlueAccent], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          ),
+        ),
+        title: Text('Hi, ${widget.loggedInStudent.name.split(' ').last} 👋', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => EditProfileScreen(student: widget.loggedInStudent)
-                  )
-              ).then((value) {
-                setState(() {}); // Tải lại dữ liệu (tên, mật khẩu mới) khi quay lại
-              });
+          // NÚT XEM BẢNG TIN THÔNG BÁO MỚI THÊM
+          IconButton(
+            icon: const Icon(Icons.newspaper, color: Colors.white),
+            tooltip: 'Bảng tin nhà trường',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const NewsFeedScreen()));
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.event_note, color: Colors.white),
+            tooltip: 'Sự kiện',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => Scaffold(
+                  appBar: AppBar(title: const Text('Sự kiện', style: TextStyle(color: Colors.white)), backgroundColor: Colors.blueAccent, iconTheme: const IconThemeData(color: Colors.white)),
+                  body: const EventsUserTab()
+              )));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_document, color: Colors.white),
+            tooltip: 'Đơn xin nghỉ phép',
+            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => LeaveRequestStudentScreen(student: widget.loggedInStudent))); },
+          ),
+          InkWell(
+            onTap: () { Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfileScreen(student: widget.loggedInStudent))).then((value) { setState(() {}); }); },
             child: Padding(
-                padding: const EdgeInsets.only(right: 15.0),
-                child: Row(
-                    children: [
-                      const Icon(Icons.account_circle, color: Colors.white),
-                      const SizedBox(width: 5),
-                      Text(
-                          widget.loggedInStudent.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)
-                      )
-                    ]
+                padding: const EdgeInsets.only(right: 16.0, left: 8.0),
+                child: CircleAvatar(
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  child: const Icon(Icons.person, color: Colors.white),
                 )
             ),
           )
         ],
       ),
       body: tabs[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Lớp học'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Lịch học'),
-          BottomNavigationBarItem(icon: Icon(Icons.assessment), label: 'Bảng điểm'),
-          BottomNavigationBarItem(icon: Icon(Icons.event_note), label: 'Sự kiện'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))]),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.white,
+            currentIndex: _currentIndex,
+            selectedItemColor: Colors.blueAccent,
+            unselectedItemColor: Colors.grey.shade400,
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            onTap: (index) => setState(() => _currentIndex = index),
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.group_outlined), activeIcon: Icon(Icons.group), label: 'Lớp học'),
+              BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'Lịch học'),
+              BottomNavigationBarItem(icon: Icon(Icons.assessment_outlined), activeIcon: Icon(Icons.assessment), label: 'Bảng điểm'),
+              // ĐÃ ĐỔI THÀNH TAB BÀI TẬP
+              BottomNavigationBarItem(icon: Icon(Icons.drive_file_rename_outline), activeIcon: Icon(Icons.edit_document), label: 'Bài tập'),
+            ],
+          ),
+        ),
       ),
     );
   }

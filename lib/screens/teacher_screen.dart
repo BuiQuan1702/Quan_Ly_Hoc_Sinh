@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../models/student.dart';
 import 'teacher_profile_screen.dart';
+import 'leave_manage_teacher_screen.dart';
+import 'news_feed_screen.dart';
+import 'assignment_teacher_screen.dart';
 
 class TeacherScreen extends StatefulWidget {
   final Teacher loggedInTeacher;
@@ -31,10 +34,10 @@ class _TeacherScreenState extends State<TeacherScreen> {
     }
   }
 
+  // ================= BẢNG ĐIỀU KHIỂN ĐIỂM DANH (GIAO DIỆN MỚI) =================
   void _showAttendanceBottomSheet(BuildContext context, Lesson lesson) {
     showModalBottomSheet(
-        context: context, isScrollControlled: true, backgroundColor: Colors.white,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
         builder: (BuildContext context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
@@ -42,125 +45,83 @@ class _TeacherScreenState extends State<TeacherScreen> {
                 String? currentCode = lessonAttendanceCodes[lesson.id];
                 List<String> attendedList = lessonAttendedStudents[lesson.id] ?? [];
 
-                return FractionallySizedBox(
-                  heightFactor: 0.8,
-                  child: Column(
-                    children: [
-                      Padding(padding: const EdgeInsets.all(16.0), child: Text('Điểm danh: ${lesson.subject} - Lớp ${lesson.className}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-                      Container(
-                        width: double.infinity, padding: const EdgeInsets.all(16.0), color: Colors.blue.shade50,
-                        child: Column(
-                          children: [
-                            if (currentCode != null)
-                              Text(currentCode, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.blue, letterSpacing: 5))
-                            else
-                              const Text('Chưa mở điểm danh', style: TextStyle(color: Colors.red)),
-                            const SizedBox(height: 10),
-                            ElevatedButton.icon(
-                                onPressed: () {
-                                  setModalState(() {
-                                    lessonAttendanceCodes[lesson.id] = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
-                                    if (lessonAttendedStudents[lesson.id] == null) lessonAttendedStudents[lesson.id] = [];
-                                  });
-                                },
-                                icon: const Icon(Icons.qr_code),
-                                label: const Text('Mở Điểm danh & Tạo mã')
-                            )
-                          ],
-                        ),
-                      ),
-                      Container(padding: const EdgeInsets.all(10), width: double.infinity, color: Colors.grey.shade200, child: Text('Danh sách học sinh (${attendedList.length}/${studentsInClass.length})', style: const TextStyle(fontWeight: FontWeight.bold))),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: studentsInClass.length,
-                          itemBuilder: (context, index) {
-                            final student = studentsInClass[index];
-                            final isAttended = attendedList.contains(student.id);
-                            return CheckboxListTile(
-                                value: isAttended, title: Text(student.name),
-                                subtitle: Text('Mã HS: ${student.id}'),
-                                secondary: Icon(isAttended ? Icons.check_circle : Icons.radio_button_unchecked, color: isAttended ? Colors.green : Colors.grey),
-                                onChanged: (val) {
-                                  setModalState(() {
-                                    if (lessonAttendedStudents[lesson.id] == null) lessonAttendedStudents[lesson.id] = [];
-                                    if (val == true) { lessonAttendedStudents[lesson.id]!.add(student.id); }
-                                    else { lessonAttendedStudents[lesson.id]!.remove(student.id); }
-                                  });
-                                }
-                            );
-                          },
-                        ),
-                      )
-                    ],
+                return Container(
+                  decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(24))
                   ),
-                );
-              }
-          );
-        }
-    );
-  }
-
-  void _showGradesBottomSheet(BuildContext context, Student student, List<String> subjectsTaught) {
-    if (subjectsTaught.isEmpty) subjectsTaught = ['Môn chung'];
-    String selectedSubject = subjectsTaught.first;
-    String selectedType = gradeTypes.first;
-    TextEditingController scoreController = TextEditingController();
-
-    showModalBottomSheet(
-        context: context, isScrollControlled: true, backgroundColor: Colors.white,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-        builder: (BuildContext context) {
-          return StatefulBuilder(
-              builder: (BuildContext context, StateSetter setModalState) {
-                return Padding(
-                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
                   child: FractionallySizedBox(
-                    heightFactor: 0.8,
+                    heightFactor: 0.85,
                     child: Column(
                       children: [
-                        Padding(padding: const EdgeInsets.all(16.0), child: Text('Chấm điểm: ${student.name}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue))),
                         Container(
-                          padding: const EdgeInsets.all(16.0), color: Colors.blue.shade50,
+                          margin: const EdgeInsets.only(top: 10), width: 50, height: 5,
+                          decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+                        ),
+                        Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              children: [
+                                Text('Điểm danh: Lớp ${lesson.className}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.blueAccent)),
+                                Text('${lesson.subject} | ${lesson.time}', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                              ],
+                            )
+                        ),
+                        Container(
+                          width: double.infinity, margin: const EdgeInsets.symmetric(horizontal: 20), padding: const EdgeInsets.all(20.0),
+                          decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blueAccent.withOpacity(0.2))),
                           child: Column(
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(child: DropdownButtonFormField<String>(value: selectedSubject, decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Môn'), items: subjectsTaught.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(), onChanged: (val) => setModalState(() => selectedSubject = val!))),
-                                  const SizedBox(width: 10),
-                                  Expanded(child: DropdownButtonFormField<String>(value: selectedType, decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Loại'), items: gradeTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12)))).toList(), onChanged: (val) => setModalState(() => selectedType = val!))),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(child: TextField(controller: scoreController, keyboardType: TextInputType.number, decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Điểm số (0-10)'))),
-                                  const SizedBox(width: 10),
-                                  ElevatedButton(
-                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                                      onPressed: () {
-                                        double? sc = double.tryParse(scoreController.text);
-                                        if (sc != null && sc >= 0 && sc <= 10) {
-                                          setModalState(() {
-                                            if (student.grades[selectedSubject] == null) student.grades[selectedSubject] = {'Miệng / 15 Phút': [], '1 Tiết / Giữa Kỳ': [], 'Học Kỳ': []};
-                                            if (student.grades[selectedSubject]![selectedType] == null) student.grades[selectedSubject]![selectedType] = [];
-                                            student.grades[selectedSubject]![selectedType]!.add(sc);
-                                            scoreController.clear();
-                                          });
-                                          setState(() {});
-                                        } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Điểm không hợp lệ!'), backgroundColor: Colors.red));
-                                        }
-                                      },
-                                      child: const Text('Lưu', style: TextStyle(color: Colors.white))
-                                  )
-                                ],
+                              if (currentCode != null)
+                                Text(currentCode, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.blueAccent, letterSpacing: 8))
+                              else
+                                const Text('Chưa mở điểm danh', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 15),
+                              ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blueAccent,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)
+                                  ),
+                                  onPressed: () {
+                                    setModalState(() {
+                                      lessonAttendanceCodes[lesson.id] = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+                                      if (lessonAttendedStudents[lesson.id] == null) lessonAttendedStudents[lesson.id] = [];
+                                    });
+                                  },
+                                  icon: const Icon(Icons.qr_code, color: Colors.white),
+                                  label: const Text('Mở Điểm danh & Tạo mã', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
                               )
                             ],
                           ),
                         ),
+                        const SizedBox(height: 15),
+                        Container(padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20), width: double.infinity, color: Colors.grey.shade50, child: Text('DANH SÁCH HỌC SINH (${attendedList.length}/${studentsInClass.length})', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade600, letterSpacing: 1))),
                         Expanded(
-                          child: student.grades.isEmpty ? const Center(child: Text('Chưa có điểm')) : ListView(
-                            children: student.grades.entries.map((e) => ExpansionTile(title: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold)), children: e.value.entries.map((te) => ListTile(title: Text(te.key), trailing: Text(te.value.isEmpty ? '-' : te.value.join(" | ")))).toList())).toList(),
+                          child: ListView.builder(
+                            itemCount: studentsInClass.length,
+                            itemBuilder: (context, index) {
+                              final student = studentsInClass[index];
+                              final isAttended = attendedList.contains(student.id);
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                                decoration: BoxDecoration(color: isAttended ? Colors.green.shade50 : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: isAttended ? Colors.green.shade200 : Colors.grey.shade200)),
+                                child: CheckboxListTile(
+                                    activeColor: Colors.green,
+                                    value: isAttended,
+                                    title: Text(student.name, style: TextStyle(fontWeight: isAttended ? FontWeight.bold : FontWeight.normal)),
+                                    subtitle: Text('Mã HS: ${student.id}'),
+                                    secondary: CircleAvatar(backgroundColor: isAttended ? Colors.green : Colors.grey.shade300, child: const Icon(Icons.person, color: Colors.white)),
+                                    onChanged: (val) {
+                                      setModalState(() {
+                                        if (lessonAttendedStudents[lesson.id] == null) lessonAttendedStudents[lesson.id] = [];
+                                        if (val == true) { lessonAttendedStudents[lesson.id]!.add(student.id); }
+                                        else { lessonAttendedStudents[lesson.id]!.remove(student.id); }
+                                      });
+                                    }
+                                ),
+                              );
+                            },
                           ),
                         )
                       ],
@@ -173,8 +134,102 @@ class _TeacherScreenState extends State<TeacherScreen> {
     );
   }
 
+  // ================= BẢNG ĐIỀU KHIỂN CHẤM ĐIỂM (GIAO DIỆN MỚI) =================
+  void _showGradesBottomSheet(BuildContext context, Student student, List<String> subjectsTaught) {
+    if (subjectsTaught.isEmpty) subjectsTaught = ['Môn chung'];
+    String selectedSubject = subjectsTaught.first;
+    String selectedType = gradeTypes.first;
+    TextEditingController scoreController = TextEditingController();
+
+    showModalBottomSheet(
+        context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+        builder: (BuildContext context) {
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                return Padding(
+                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                  child: Container(
+                    decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+                    child: FractionallySizedBox(
+                      heightFactor: 0.85,
+                      child: Column(
+                        children: [
+                          Container(margin: const EdgeInsets.only(top: 10), width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+                          Padding(padding: const EdgeInsets.all(20.0), child: Text('Chấm điểm: ${student.name}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.orange))),
+                          Container(
+                            padding: const EdgeInsets.all(20.0), margin: const EdgeInsets.symmetric(horizontal: 20),
+                            decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.orange.shade200)),
+                            child: Column(
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(child: DropdownButtonFormField<String>(value: selectedSubject, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, labelText: 'Môn'), items: subjectsTaught.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(), onChanged: (val) => setModalState(() => selectedSubject = val!))),
+                                    const SizedBox(width: 10),
+                                    Expanded(child: DropdownButtonFormField<String>(value: selectedType, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, labelText: 'Loại'), items: gradeTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12)))).toList(), onChanged: (val) => setModalState(() => selectedType = val!))),
+                                  ],
+                                ),
+                                const SizedBox(height: 15),
+                                Row(
+                                  children: [
+                                    Expanded(child: TextField(controller: scoreController, keyboardType: TextInputType.number, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, labelText: 'Nhập điểm số (0-10)'))),
+                                    const SizedBox(width: 15),
+                                    ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15)),
+                                        onPressed: () {
+                                          double? sc = double.tryParse(scoreController.text);
+                                          if (sc != null && sc >= 0 && sc <= 10) {
+                                            setModalState(() {
+                                              if (student.grades[selectedSubject] == null) student.grades[selectedSubject] = {'Miệng / 15 Phút': [], '1 Tiết / Giữa Kỳ': [], 'Học Kỳ': []};
+                                              if (student.grades[selectedSubject]![selectedType] == null) student.grades[selectedSubject]![selectedType] = [];
+                                              student.grades[selectedSubject]![selectedType]!.add(sc);
+                                              scoreController.clear();
+                                            });
+                                            setState(() {});
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Điểm không hợp lệ!'), backgroundColor: Colors.redAccent));
+                                          }
+                                        },
+                                        child: const Text('Lưu điểm', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                                    )
+                                  ],
+                                )
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          Expanded(
+                            child: student.grades.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.assignment_outlined, size: 50, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('Chưa có điểm số nào', style: TextStyle(color: Colors.grey))])) : ListView(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              children: student.grades.entries.map((e) => Container(
+                                margin: const EdgeInsets.only(bottom: 10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                                child: Theme(
+                                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                  child: ExpansionTile(
+                                      leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.book, color: Colors.white, size: 18)),
+                                      title: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      children: e.value.entries.map((te) => Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(te.key, style: TextStyle(color: Colors.grey.shade600)), Text(te.value.isEmpty ? '-' : te.value.join(" | "), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]))).toList()
+                                  ),
+                                ),
+                              )).toList(),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+          );
+        }
+    );
+  }
+
+  // ================= LƯỚI LỊCH DẠY CỦA GIÁO VIÊN =================
   Widget _buildTimetableGrid(List<DateTime> weekDates, List<Lesson> myLessons) {
-    const double hourHeight = 50.0; const double dayWidth = 95.0; const double timeColumnWidth = 45.0; const double headerHeight = 40.0;
+    const double hourHeight = 65.0;
+    const double dayWidth = 110.0;
+    const double timeColumnWidth = 55.0;
+    const double headerHeight = 55.0;
     const int startHour = 6; const int endHour = 18; const int hourCount = endHour - startHour + 1;
     final List<String> days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
 
@@ -184,27 +239,20 @@ class _TeacherScreenState extends State<TeacherScreen> {
         child: SingleChildScrollView(
           scrollDirection: Axis.vertical,
           child: Container(
-            width: timeColumnWidth + days.length * dayWidth, height: headerHeight + hourCount * hourHeight, color: Colors.white,
+            width: timeColumnWidth + days.length * dayWidth, height: headerHeight + hourCount * hourHeight, color: const Color(0xFFF9FAFC),
             child: Stack(
               children: [
-                for (int i = 0; i <= hourCount; i++) Positioned(top: headerHeight + i * hourHeight, left: 0, right: 0, child: Container(height: 1, color: Colors.grey[200])),
-                for (int i = 0; i <= days.length; i++) Positioned(top: 0, bottom: 0, left: timeColumnWidth + i * dayWidth, child: Container(width: 1, color: Colors.grey[200])),
-                for (int i = 0; i < hourCount; i++) Positioned(top: headerHeight + i * hourHeight, left: 0, width: timeColumnWidth, height: hourHeight, child: Center(child: Text('${startHour + i}:00', style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.bold)))),
-
+                for (int i = 0; i <= hourCount; i++) Positioned(top: headerHeight + i * hourHeight, left: 0, right: 0, child: Container(height: 1, color: Colors.grey.shade200)),
+                for (int i = 0; i <= days.length; i++) Positioned(top: 0, bottom: 0, left: timeColumnWidth + i * dayWidth, child: Container(width: 1, color: Colors.grey.shade200)),
+                for (int i = 0; i < hourCount; i++) Positioned(top: headerHeight + i * hourHeight, left: 0, width: timeColumnWidth, height: hourHeight, child: Center(child: Text('${startHour + i}:00', style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.bold)))),
                 for (int i = 0; i < days.length; i++)
                   Positioned(
                     top: 0, left: timeColumnWidth + i * dayWidth, width: dayWidth, height: headerHeight,
                     child: Container(
-                      color: Colors.blue[50],
-                      child: Center(
-                        child: Text(
-                          '${days[i]}\n(${weekDates[i].day.toString().padLeft(2, '0')}/${weekDates[i].month.toString().padLeft(2, '0')})',
-                          textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[800], fontSize: 12),
-                        ),
-                      ),
+                      decoration: BoxDecoration(color: Colors.indigo.shade50, border: Border(bottom: BorderSide(color: Colors.indigo.shade100, width: 2))),
+                      child: Center(child: Text('${days[i]}\n(${weekDates[i].day.toString().padLeft(2, '0')}/${weekDates[i].month.toString().padLeft(2, '0')})', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo.shade800, fontSize: 12))),
                     ),
                   ),
-
                 for (var lesson in myLessons)
                   if (weekDates.any((d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}" == lesson.date))
                     _buildLessonBlock(lesson, startHour, hourHeight, dayWidth, timeColumnWidth, headerHeight, weekDates),
@@ -221,7 +269,6 @@ class _TeacherScreenState extends State<TeacherScreen> {
       final parts = lesson.time.split('-'); if (parts.length != 2) return const SizedBox.shrink();
       final startH = int.parse(parts[0].trim().split(':')[0]); final startM = int.parse(parts[0].trim().split(':')[1]);
       final endH = int.parse(parts[1].trim().split(':')[0]); final endM = int.parse(parts[1].trim().split(':')[1]);
-
       int dayIndex = weekDates.indexWhere((d) => "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}" == lesson.date);
       if (dayIndex == -1) return const SizedBox.shrink();
 
@@ -229,21 +276,19 @@ class _TeacherScreenState extends State<TeacherScreen> {
       final height = ((endH - startH) * hHeight) + ((endM - startM) / 60 * hHeight);
       final left = tWidth + dayIndex * dWidth;
 
-      Color bgColor = Colors.blue.shade100; Color borderColor = Colors.blue.shade700;
-
       return Positioned(
         top: top, left: left, width: dWidth, height: height,
         child: InkWell(
           onTap: () => _showAttendanceBottomSheet(context, lesson),
           child: Container(
-            margin: const EdgeInsets.all(2), padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: bgColor, border: Border(left: BorderSide(color: borderColor, width: 4)), borderRadius: BorderRadius.circular(4)),
+            margin: const EdgeInsets.all(3), padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(color: Colors.indigo.shade50, border: Border(left: BorderSide(color: Colors.indigo.shade400, width: 4)), borderRadius: BorderRadius.circular(6), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(2, 2))]),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${lesson.subject} - Lớp ${lesson.className}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: borderColor), maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4), Text(lesson.time, style: const TextStyle(fontSize: 11, color: Colors.black87)), const Spacer(),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [Icon(Icons.qr_code_scanner, size: 14, color: borderColor)]),
+                Text('${lesson.subject}\nLớp ${lesson.className}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.indigo.shade700, height: 1.2), maxLines: 2, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3), Text(lesson.time, style: TextStyle(fontSize: 10, color: Colors.grey.shade700)), const Spacer(),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [Icon(Icons.qr_code_scanner, size: 14, color: Colors.indigo.shade400)]),
               ],
             ),
           ),
@@ -255,59 +300,63 @@ class _TeacherScreenState extends State<TeacherScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Lọc Lịch dạy: Lấy các tiết học mà giáo viên này được phân công
     final List<Lesson> myLessons = mockTimetable.where((l) => l.teacherName == widget.loggedInTeacher.name).toList();
-
-    // 2. Lấy danh sách các lớp và các môn mà giáo viên này dạy
     final List<String> myClasses = myLessons.map((l) => l.className).toSet().toList()..sort();
     final List<String> mySubjects = myLessons.map((l) => l.subject).toSet().toList();
 
     // TAB 1: DANH SÁCH LỚP
     Widget myClassesTab = Scaffold(
-      body: myClasses.isEmpty ? const Center(child: Text('Bạn chưa được phân công dạy lớp nào.')) : ListView.builder(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: myClasses.isEmpty ? const Center(child: Text('Bạn chưa được phân công dạy lớp nào.', style: TextStyle(color: Colors.grey))) : ListView.builder(
+        padding: const EdgeInsets.all(16),
         itemCount: myClasses.length,
         itemBuilder: (context, classIndex) {
           String currentClass = myClasses[classIndex];
           List<Student> studentsInClass = mockStudents.where((s) => s.className == currentClass).toList();
-
-          // NÂNG CẤP: Tìm các lịch dạy của lớp này và ghép lại thành chuỗi hiển thị
           List<Lesson> classLessons = myLessons.where((l) => l.className == currentClass).toList();
           String scheduleInfo = classLessons.map((l) => '• ${l.subject} (${_getWeekdayString(l.date)}, ${l.date} | ${l.time})').join('\n');
           if (scheduleInfo.isEmpty) scheduleInfo = 'Chưa phân bổ lịch';
 
-          return ExpansionTile(
-            initiallyExpanded: true, leading: const Icon(Icons.class_, color: Colors.blue),
-            title: Text('Lớp: $currentClass', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 18)),
-
-            // NÂNG CẤP PHẦN SUBTITLE: Hiển thị sĩ số và Lịch học của lớp
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 5),
-                Text('Sĩ số: ${studentsInClass.length} học sinh', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text('Lịch dạy của bạn:', style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontStyle: FontStyle.italic)),
-                const SizedBox(height: 3),
-                Text(scheduleInfo, style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.4)),
-                const SizedBox(height: 5),
-              ],
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, 5))]),
+            child: Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                initiallyExpanded: true,
+                leading: CircleAvatar(backgroundColor: Colors.indigo.shade50, child: Icon(Icons.class_, color: Colors.indigo.shade400)),
+                title: Text('Lớp: $currentClass', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.indigo.shade800, fontSize: 18)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 5),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(10)), child: Text('Sĩ số: ${studentsInClass.length} học sinh', style: TextStyle(color: Colors.blueGrey.shade700, fontWeight: FontWeight.bold, fontSize: 12))),
+                    const SizedBox(height: 10),
+                    const Text('Lịch dạy của bạn:', style: TextStyle(color: Colors.blueGrey, fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(scheduleInfo, style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.5)),
+                    const SizedBox(height: 10),
+                  ],
+                ),
+                children: studentsInClass.map((student) {
+                  return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: CircleAvatar(backgroundColor: Colors.blueAccent.withOpacity(0.1), child: const Icon(Icons.person, color: Colors.blueAccent)),
+                        title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Mã HS: ${student.id}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                        trailing: IconButton(
+                            icon: const Icon(Icons.stars, color: Colors.orange, size: 32),
+                            tooltip: 'Chấm điểm',
+                            onPressed: () => _showGradesBottomSheet(context, student, mySubjects)
+                        ),
+                      )
+                  );
+                }).toList(),
+              ),
             ),
-
-            children: studentsInClass.map((student) {
-              return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                  child: ListTile(
-                    leading: CircleAvatar(backgroundColor: Colors.blue.shade100, child: const Icon(Icons.person, color: Colors.blue)),
-                    title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Mã HS: ${student.id}'),
-                    trailing: IconButton(
-                        icon: const Icon(Icons.star, color: Colors.amber, size: 30),
-                        tooltip: 'Chấm điểm',
-                        onPressed: () => _showGradesBottomSheet(context, student, mySubjects)
-                    ),
-                  )
-              );
-            }).toList(),
           );
         },
       ),
@@ -320,24 +369,16 @@ class _TeacherScreenState extends State<TeacherScreen> {
     Widget myScheduleTab = Column(
       children: [
         Container(
-          decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 5, offset: const Offset(0, 3))]
-          ),
+          decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))]),
           child: TableCalendar(
             firstDay: DateTime.utc(2025, 1, 1), lastDay: DateTime.utc(2030, 12, 31),
-            focusedDay: _focusedDay, calendarFormat: _calendarFormat,
-            startingDayOfWeek: StartingDayOfWeek.monday,
+            focusedDay: _focusedDay, calendarFormat: _calendarFormat, startingDayOfWeek: StartingDayOfWeek.monday,
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
             onDaySelected: (selectedDay, focusedDay) { setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; }); },
             onFormatChanged: (format) { setState(() { _calendarFormat = format; }); },
             onPageChanged: (focusedDay) { _focusedDay = focusedDay; },
-            calendarStyle: const CalendarStyle(selectedDecoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle)),
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: true, titleCentered: true,
-              formatButtonDecoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.all(Radius.circular(12.0))),
-              formatButtonTextStyle: TextStyle(color: Colors.white),
-            ),
+            calendarStyle: CalendarStyle(selectedDecoration: BoxDecoration(color: Colors.indigo.shade400, shape: BoxShape.circle), todayDecoration: BoxDecoration(color: Colors.indigo.shade200, shape: BoxShape.circle)),
+            headerStyle: HeaderStyle(formatButtonVisible: true, titleCentered: true, formatButtonDecoration: BoxDecoration(color: Colors.indigo.shade400, borderRadius: const BorderRadius.all(Radius.circular(12.0))), formatButtonTextStyle: const TextStyle(color: Colors.white)),
           ),
         ),
         Expanded(child: _buildTimetableGrid(weekDates, myLessons)),
@@ -347,52 +388,63 @@ class _TeacherScreenState extends State<TeacherScreen> {
     final tabs = [myClassesTab, myScheduleTab];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Colors.indigo, Colors.blueAccent], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          ),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Không gian Giáo viên', style: TextStyle(color: Colors.white, fontSize: 18)),
+            const Text('Không gian Giáo viên', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             Text('GV: ${widget.loggedInTeacher.name}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
           ],
         ),
-        backgroundColor: Colors.blue[800],
         actions: [
-          InkWell(
-            onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => TeacherProfileScreen(teacher: widget.loggedInTeacher)
-                  )
-              ).then((value) {
-                setState(() {}); // Tải lại dữ liệu (tên, SĐT mới) khi quay lại
-              });
+          // NÚT XEM BẢNG TIN THÔNG BÁO MỚI THÊM
+          IconButton(
+            icon: const Icon(Icons.newspaper, color: Colors.white),
+            tooltip: 'Bảng tin nhà trường',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const NewsFeedScreen()));
             },
+          ),
+
+          // Nút duyệt đơn xin nghỉ cũ giữ nguyên
+          IconButton(
+            icon: const Icon(Icons.fact_check_outlined, color: Colors.white),
+            tooltip: 'Duyệt đơn xin nghỉ',
+            onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (context) => LeaveManageTeacherScreen(teacher: widget.loggedInTeacher))); },
+          ),
+          InkWell(
+            onTap: () { Navigator.push(context, MaterialPageRoute(builder: (context) => TeacherProfileScreen(teacher: widget.loggedInTeacher))).then((value) { setState(() {}); }); },
             child: Padding(
-                padding: const EdgeInsets.only(right: 15.0),
-                child: Row(
-                    children: [
-                      const Icon(Icons.account_circle, color: Colors.white),
-                      const SizedBox(width: 5),
-                      Text(
-                          widget.loggedInTeacher.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)
-                      )
-                    ]
-                )
+                padding: const EdgeInsets.only(right: 16.0, left: 8.0),
+                child: CircleAvatar(backgroundColor: Colors.white.withOpacity(0.2), child: const Icon(Icons.person, color: Colors.white))
             ),
           )
         ],
       ),
       body: tabs[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          selectedItemColor: Colors.blue[800],
-          onTap: (index) => setState(() => _currentIndex = index),
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Lớp đang dạy'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Lịch dạy của tôi'),
-          ]
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))]),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: BottomNavigationBar(
+              type: BottomNavigationBarType.fixed, backgroundColor: Colors.white,
+              currentIndex: _currentIndex, selectedItemColor: Colors.indigo, unselectedItemColor: Colors.grey.shade400,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              onTap: (index) => setState(() => _currentIndex = index),
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.group_outlined), activeIcon: Icon(Icons.group), label: 'Lớp đang dạy'),
+                BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), activeIcon: Icon(Icons.calendar_month), label: 'Lịch dạy của tôi'),
+                // TAB MỚI THÊM VÀO
+                BottomNavigationBarItem(icon: Icon(Icons.drive_file_rename_outline), activeIcon: Icon(Icons.edit_document), label: 'Giao bài tập'),
+              ]
+          ),
+        ),
       ),
     );
   }
