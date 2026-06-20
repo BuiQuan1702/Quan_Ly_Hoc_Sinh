@@ -1,5 +1,5 @@
-// lib/screens/leave_request_student_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Thêm Firebase
 import '../../../models/student.dart';
 
 class LeaveRequestStudentScreen extends StatefulWidget {
@@ -11,6 +11,26 @@ class LeaveRequestStudentScreen extends StatefulWidget {
 }
 
 class _LeaveRequestStudentScreenState extends State<LeaveRequestStudentScreen> {
+  // Hàm gửi đơn lên Firebase
+  Future<void> _submitRequest(String date, String reason) async {
+    try {
+      await FirebaseFirestore.instance.collection('leave_requests').add({
+        'studentId': widget.student.id,
+        'studentName': widget.student.name,
+        'className': widget.student.className,
+        'date': date,
+        'reason': reason,
+        'status': 'Chờ duyệt',
+        'createdAt': FieldValue.serverTimestamp(), // Để sắp xếp
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã gửi đơn thành công!'), backgroundColor: Colors.green));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));
+    }
+  }
+
   void _showCreateRequestDialog() {
     TextEditingController reasonController = TextEditingController();
     DateTime chosenDate = DateTime.now();
@@ -56,15 +76,8 @@ class _LeaveRequestStudentScreenState extends State<LeaveRequestStudentScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập lý do!'), backgroundColor: Colors.red));
                   return;
                 }
-                setState(() {
-                  mockLeaveRequests.add(LeaveRequest(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    studentId: widget.student.id, studentName: widget.student.name,
-                    className: widget.student.className, date: dateController.text, reason: reasonController.text,
-                  ));
-                });
+                _submitRequest(dateController.text, reasonController.text);
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã gửi đơn thành công!'), backgroundColor: Colors.green));
               },
               child: const Text('Gửi đơn', style: TextStyle(color: Colors.white)),
             )
@@ -76,27 +89,45 @@ class _LeaveRequestStudentScreenState extends State<LeaveRequestStudentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Chỉ lấy các đơn xin nghỉ của chính học sinh này
-    final myRequests = mockLeaveRequests.where((req) => req.studentId == widget.student.id).toList()..sort((a, b) => b.id.compareTo(a.id));
-
     return Scaffold(
       appBar: AppBar(title: const Text('Đơn xin nghỉ phép', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green, iconTheme: const IconThemeData(color: Colors.white)),
-      body: myRequests.isEmpty
-          ? const Center(child: Text('Bạn chưa có đơn xin nghỉ nào.', style: TextStyle(color: Colors.grey)))
-          : ListView.builder(
-        padding: const EdgeInsets.all(10),
-        itemCount: myRequests.length,
-        itemBuilder: (context, index) {
-          final req = myRequests[index];
-          Color statusColor = req.status == 'Đã duyệt' ? Colors.green : (req.status == 'Từ chối' ? Colors.red : Colors.orange);
-          return Card(
-            elevation: 2, margin: const EdgeInsets.only(bottom: 10),
-            child: ListTile(
-              leading: Icon(Icons.assignment, color: statusColor, size: 30),
-              title: Text('Ngày nghỉ: ${req.date}', style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Lý do: ${req.reason}\nTrạng thái: ${req.status}', style: const TextStyle(height: 1.5)),
-              isThreeLine: true,
-            ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('leave_requests')
+            .where('studentId', isEqualTo: widget.student.id)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('Bạn chưa có đơn xin nghỉ nào.', style: TextStyle(color: Colors.grey)));
+          }
+
+          final docs = snapshot.data!.docs;
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(10),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final req = docs[index].data() as Map<String, dynamic>;
+              final date = req['date'] ?? '';
+              final reason = req['reason'] ?? '';
+              final status = req['status'] ?? 'Chờ duyệt';
+              
+              Color statusColor = status == 'Đã duyệt' ? Colors.green : (status == 'Từ chối' ? Colors.red : Colors.orange);
+              
+              return Card(
+                elevation: 2, margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: Icon(Icons.assignment, color: statusColor, size: 30),
+                  title: Text('Ngày nghỉ: $date', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Lý do: $reason\nTrạng thái: $status', style: const TextStyle(height: 1.5)),
+                  isThreeLine: true,
+                ),
+              );
+            },
           );
         },
       ),

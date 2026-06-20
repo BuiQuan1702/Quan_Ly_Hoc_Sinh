@@ -1,6 +1,6 @@
-// lib/screens/teacher_screen.dart
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Thêm Firebase
 import '../models/student.dart';
 import 'teacher_profile_screen.dart';
 import 'leave_manage_teacher_screen.dart';
@@ -26,116 +26,165 @@ class _TeacherScreenState extends State<TeacherScreen> {
 
   String _getWeekdayString(String dateStr) {
     try {
-      DateTime dt = DateTime.parse(dateStr);
-      List<String> weekdays = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
-      return weekdays[dt.weekday - 1];
-    } catch (_) {
-      return 'Thứ 2';
+      DateTime date = DateTime.parse(dateStr);
+      switch (date.weekday) {
+        case 1: return 'Thứ 2';
+        case 2: return 'Thứ 3';
+        case 3: return 'Thứ 4';
+        case 4: return 'Thứ 5';
+        case 5: return 'Thứ 6';
+        case 6: return 'Thứ 7';
+        case 7: return 'Chủ Nhật';
+        default: return '';
+      }
+    } catch (e) {
+      return '';
     }
   }
 
-  // ================= BẢNG ĐIỀU KHIỂN ĐIỂM DANH (GIAO DIỆN MỚI) =================
+  // Stream lấy lịch dạy của giáo viên
+  Stream<List<Lesson>> _getMyLessons() {
+    return FirebaseFirestore.instance
+        .collection('timetable')
+        .where('teacherName', isEqualTo: widget.loggedInTeacher.name)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Lesson(
+                  id: doc.id,
+                  subject: doc['subject'],
+                  date: doc['date'],
+                  time: doc['time'],
+                  className: doc['className'],
+                  teacherName: doc['teacherName'],
+                ))
+            .toList());
+  }
+
+  // ================= BẢNG ĐIỀU KHIỂN ĐIỂM DANH (FIREBASE) =================
   void _showAttendanceBottomSheet(BuildContext context, Lesson lesson) {
     showModalBottomSheet(
         context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
         builder: (BuildContext context) {
-          return StatefulBuilder(
-              builder: (BuildContext context, StateSetter setModalState) {
-                List<Student> studentsInClass = mockStudents.where((s) => s.className == lesson.className).toList();
-                String? currentCode = lessonAttendanceCodes[lesson.id];
-                List<String> attendedList = lessonAttendedStudents[lesson.id] ?? [];
+          return StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('timetable').doc(lesson.id).snapshots(),
+            builder: (context, lessonSnapshot) {
+              if (!lessonSnapshot.hasData) return const Center(child: CircularProgressIndicator());
+              
+              var lessonData = lessonSnapshot.data!.data() as Map<String, dynamic>? ?? {};
+              String? currentCode = lessonData['attendanceCode'];
+              List<dynamic> attendedList = lessonData['attendedStudents'] ?? [];
 
-                return Container(
-                  decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24))
-                  ),
-                  child: FractionallySizedBox(
-                    heightFactor: 0.85,
-                    child: Column(
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.only(top: 10), width: 50, height: 5,
-                          decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
-                        ),
-                        Padding(
-                            padding: const EdgeInsets.all(20.0),
+              return StatefulBuilder(
+                  builder: (BuildContext context, StateSetter setModalState) {
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection('students').where('className', isEqualTo: lesson.className).snapshots(),
+                      builder: (context, studentSnapshot) {
+                        if (!studentSnapshot.hasData) return const Center(child: CircularProgressIndicator());
+                        final studentsInClass = studentSnapshot.data!.docs;
+
+                        return Container(
+                          decoration: const BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(24))
+                          ),
+                          child: FractionallySizedBox(
+                            heightFactor: 0.85,
                             child: Column(
                               children: [
-                                Text('Điểm danh: Lớp ${lesson.className}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.blueAccent)),
-                                Text('${lesson.subject} | ${lesson.time}', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
-                              ],
-                            )
-                        ),
-                        Container(
-                          width: double.infinity, margin: const EdgeInsets.symmetric(horizontal: 20), padding: const EdgeInsets.all(20.0),
-                          decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blueAccent.withOpacity(0.2))),
-                          child: Column(
-                            children: [
-                              if (currentCode != null)
-                                Text(currentCode, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.blueAccent, letterSpacing: 8))
-                              else
-                                const Text('Chưa mở điểm danh', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 15),
-                              ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blueAccent,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)
-                                  ),
-                                  onPressed: () {
-                                    setModalState(() {
-                                      lessonAttendanceCodes[lesson.id] = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
-                                      if (lessonAttendedStudents[lesson.id] == null) lessonAttendedStudents[lesson.id] = [];
-                                    });
-                                  },
-                                  icon: const Icon(Icons.qr_code, color: Colors.white),
-                                  label: const Text('Mở Điểm danh & Tạo mã', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
-                              )
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        Container(padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20), width: double.infinity, color: Colors.grey.shade50, child: Text('DANH SÁCH HỌC SINH (${attendedList.length}/${studentsInClass.length})', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade600, letterSpacing: 1))),
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: studentsInClass.length,
-                            itemBuilder: (context, index) {
-                              final student = studentsInClass[index];
-                              final isAttended = attendedList.contains(student.id);
-                              return Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                                decoration: BoxDecoration(color: isAttended ? Colors.green.shade50 : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: isAttended ? Colors.green.shade200 : Colors.grey.shade200)),
-                                child: CheckboxListTile(
-                                    activeColor: Colors.green,
-                                    value: isAttended,
-                                    title: Text(student.name, style: TextStyle(fontWeight: isAttended ? FontWeight.bold : FontWeight.normal)),
-                                    subtitle: Text('Mã HS: ${student.id}'),
-                                    secondary: CircleAvatar(backgroundColor: isAttended ? Colors.green : Colors.grey.shade300, child: const Icon(Icons.person, color: Colors.white)),
-                                    onChanged: (val) {
-                                      setModalState(() {
-                                        if (lessonAttendedStudents[lesson.id] == null) lessonAttendedStudents[lesson.id] = [];
-                                        if (val == true) { lessonAttendedStudents[lesson.id]!.add(student.id); }
-                                        else { lessonAttendedStudents[lesson.id]!.remove(student.id); }
-                                      });
-                                    }
+                                Container(
+                                  margin: const EdgeInsets.only(top: 10), width: 50, height: 5,
+                                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
                                 ),
-                              );
-                            },
+                                Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: Column(
+                                      children: [
+                                        Text('Điểm danh: Lớp ${lesson.className}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.blueAccent)),
+                                        Text('${lesson.subject} | ${lesson.time}', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                                      ],
+                                    )
+                                ),
+                                Container(
+                                  width: double.infinity, margin: const EdgeInsets.symmetric(horizontal: 20), padding: const EdgeInsets.all(20.0),
+                                  decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.05), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blueAccent.withOpacity(0.2))),
+                                  child: Column(
+                                    children: [
+                                      if (currentCode != null)
+                                        Text(currentCode, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.blueAccent, letterSpacing: 8))
+                                      else
+                                        const Text('Chưa mở điểm danh', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 15),
+                                      ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.blueAccent,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)
+                                          ),
+                                          onPressed: () async {
+                                            String newCode = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+                                            await FirebaseFirestore.instance.collection('timetable').doc(lesson.id).update({
+                                              'attendanceCode': newCode,
+                                              'attendedStudents': []
+                                            });
+                                          },
+                                          icon: const Icon(Icons.qr_code, color: Colors.white),
+                                          label: const Text('Mở Điểm danh & Tạo mã', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                                      )
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 15),
+                                Container(padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20), width: double.infinity, color: Colors.grey.shade50, child: Text('DANH SÁCH HỌC SINH (${attendedList.length}/${studentsInClass.length})', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade600, letterSpacing: 1))),
+                                Expanded(
+                                  child: ListView.builder(
+                                    itemCount: studentsInClass.length,
+                                    itemBuilder: (context, index) {
+                                      final studentDoc = studentsInClass[index];
+                                      final studentData = studentDoc.data() as Map<String, dynamic>;
+                                      final studentId = studentData['id'];
+                                      final isAttended = attendedList.contains(studentId);
+                                      
+                                      return Container(
+                                        margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                                        decoration: BoxDecoration(color: isAttended ? Colors.green.shade50 : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: isAttended ? Colors.green.shade200 : Colors.grey.shade200)),
+                                        child: CheckboxListTile(
+                                            activeColor: Colors.green,
+                                            value: isAttended,
+                                            title: Text(studentData['name'] ?? '', style: TextStyle(fontWeight: isAttended ? FontWeight.bold : FontWeight.normal)),
+                                            subtitle: Text('Mã HS: $studentId'),
+                                            secondary: CircleAvatar(backgroundColor: isAttended ? Colors.green : Colors.grey.shade300, child: const Icon(Icons.person, color: Colors.white)),
+                                            onChanged: (val) async {
+                                              if (val == true) {
+                                                await FirebaseFirestore.instance.collection('timetable').doc(lesson.id).update({
+                                                  'attendedStudents': FieldValue.arrayUnion([studentId])
+                                                });
+                                              } else {
+                                                await FirebaseFirestore.instance.collection('timetable').doc(lesson.id).update({
+                                                  'attendedStudents': FieldValue.arrayRemove([studentId])
+                                                });
+                                              }
+                                            }
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                )
+                              ],
+                            ),
                           ),
-                        )
-                      ],
-                    ),
-                  ),
-                );
-              }
+                        );
+                      }
+                    );
+                  }
+              );
+            }
           );
         }
     );
   }
 
-  // ================= BẢNG ĐIỀU KHIỂN CHẤM ĐIỂM (GIAO DIỆN MỚI) =================
-  void _showGradesBottomSheet(BuildContext context, Student student, List<String> subjectsTaught) {
+  // ================= BẢNG ĐIỀU KHIỂN CHẤM ĐIỂM (FIREBASE) =================
+  void _showGradesBottomSheet(BuildContext context, String studentDocId, String studentName, Map<String, dynamic> existingGrades, List<String> subjectsTaught) {
     if (subjectsTaught.isEmpty) subjectsTaught = ['Môn chung'];
     String selectedSubject = subjectsTaught.first;
     String selectedType = gradeTypes.first;
@@ -155,7 +204,7 @@ class _TeacherScreenState extends State<TeacherScreen> {
                       child: Column(
                         children: [
                           Container(margin: const EdgeInsets.only(top: 10), width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
-                          Padding(padding: const EdgeInsets.all(20.0), child: Text('Chấm điểm: ${student.name}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.orange))),
+                          Padding(padding: const EdgeInsets.all(20.0), child: Text('Chấm điểm: $studentName', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.orange))),
                           Container(
                             padding: const EdgeInsets.all(20.0), margin: const EdgeInsets.symmetric(horizontal: 20),
                             decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.orange.shade200)),
@@ -175,16 +224,24 @@ class _TeacherScreenState extends State<TeacherScreen> {
                                     const SizedBox(width: 15),
                                     ElevatedButton(
                                         style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15)),
-                                        onPressed: () {
+                                        onPressed: () async {
                                           double? sc = double.tryParse(scoreController.text);
                                           if (sc != null && sc >= 0 && sc <= 10) {
-                                            setModalState(() {
-                                              if (student.grades[selectedSubject] == null) student.grades[selectedSubject] = {'Miệng / 15 Phút': [], '1 Tiết / Giữa Kỳ': [], 'Học Kỳ': []};
-                                              if (student.grades[selectedSubject]![selectedType] == null) student.grades[selectedSubject]![selectedType] = [];
-                                              student.grades[selectedSubject]![selectedType]!.add(sc);
-                                              scoreController.clear();
+                                            // Cấu trúc map điểm trên Firebase
+                                            Map<String, dynamic> newGrades = Map.from(existingGrades);
+                                            if (newGrades[selectedSubject] == null) {
+                                              newGrades[selectedSubject] = {'Miệng / 15 Phút': [], '1 Tiết / Giữa Kỳ': [], 'Học Kỳ': []};
+                                            }
+                                            List<dynamic> currentScores = List.from(newGrades[selectedSubject][selectedType] ?? []);
+                                            currentScores.add(sc);
+                                            newGrades[selectedSubject][selectedType] = currentScores;
+
+                                            await FirebaseFirestore.instance.collection('students').doc(studentDocId).update({
+                                              'grades': newGrades
                                             });
-                                            setState(() {});
+                                            scoreController.clear();
+                                            Navigator.pop(context); // Đóng sau khi lưu
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã lưu điểm thành công!'), backgroundColor: Colors.green));
                                           } else {
                                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Điểm không hợp lệ!'), backgroundColor: Colors.redAccent));
                                           }
@@ -198,16 +255,16 @@ class _TeacherScreenState extends State<TeacherScreen> {
                           ),
                           const SizedBox(height: 15),
                           Expanded(
-                            child: student.grades.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.assignment_outlined, size: 50, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('Chưa có điểm số nào', style: TextStyle(color: Colors.grey))])) : ListView(
+                            child: existingGrades.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.assignment_outlined, size: 50, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('Chưa có điểm số nào', style: TextStyle(color: Colors.grey))])) : ListView(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
-                              children: student.grades.entries.map((e) => Container(
+                              children: existingGrades.entries.map((e) => Container(
                                 margin: const EdgeInsets.only(bottom: 10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
                                 child: Theme(
                                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                                   child: ExpansionTile(
                                       leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.book, color: Colors.white, size: 18)),
                                       title: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      children: e.value.entries.map((te) => Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(te.key, style: TextStyle(color: Colors.grey.shade600)), Text(te.value.isEmpty ? '-' : te.value.join(" | "), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]))).toList()
+                                      children: (e.value as Map<String, dynamic>).entries.map((te) => Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(te.key, style: TextStyle(color: Colors.grey.shade600)), Text((te.value as List).isEmpty ? '-' : (te.value as List).join(" | "), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]))).toList()
                                   ),
                                 ),
                               )).toList(),
@@ -300,92 +357,119 @@ class _TeacherScreenState extends State<TeacherScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Lesson> myLessons = mockTimetable.where((l) => l.teacherName == widget.loggedInTeacher.name).toList();
-    final List<String> myClasses = myLessons.map((l) => l.className).toSet().toList()..sort();
-    final List<String> mySubjects = myLessons.map((l) => l.subject).toSet().toList();
+    // ================= TAB 1: DANH SÁCH LỚP (FIREBASE) =================
+    Widget myClassesTab = StreamBuilder<List<Lesson>>(
+      stream: _getMyLessons(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        final myLessons = snapshot.data ?? [];
+        final myClasses = myLessons.map((l) => l.className).toSet().toList()..sort();
+        final mySubjects = myLessons.map((l) => l.subject).toSet().toList();
 
-    // TAB 1: DANH SÁCH LỚP
-    Widget myClassesTab = Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: myClasses.isEmpty ? const Center(child: Text('Bạn chưa được phân công dạy lớp nào.', style: TextStyle(color: Colors.grey))) : ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: myClasses.length,
-        itemBuilder: (context, classIndex) {
-          String currentClass = myClasses[classIndex];
-          List<Student> studentsInClass = mockStudents.where((s) => s.className == currentClass).toList();
-          List<Lesson> classLessons = myLessons.where((l) => l.className == currentClass).toList();
-          String scheduleInfo = classLessons.map((l) => '• ${l.subject} (${_getWeekdayString(l.date)}, ${l.date} | ${l.time})').join('\n');
-          if (scheduleInfo.isEmpty) scheduleInfo = 'Chưa phân bổ lịch';
+        return Scaffold(
+          backgroundColor: const Color(0xFFF5F7FA),
+          body: myClasses.isEmpty ? const Center(child: Text('Bạn chưa được phân công dạy lớp nào.', style: TextStyle(color: Colors.grey))) : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: myClasses.length,
+            itemBuilder: (context, classIndex) {
+              String currentClass = myClasses[classIndex];
+              List<Lesson> classLessons = myLessons.where((l) => l.className == currentClass).toList();
+              String scheduleInfo = classLessons.map((l) => '• ${l.subject} (${_getWeekdayString(l.date)}, ${l.date} | ${l.time})').join('\n');
+              if (scheduleInfo.isEmpty) scheduleInfo = 'Chưa phân bổ lịch';
 
-          return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, 5))]),
-            child: Theme(
-              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                initiallyExpanded: true,
-                leading: CircleAvatar(backgroundColor: Colors.indigo.shade50, child: Icon(Icons.class_, color: Colors.indigo.shade400)),
-                title: Text('Lớp: $currentClass', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.indigo.shade800, fontSize: 18)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 5),
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(10)), child: Text('Sĩ số: ${studentsInClass.length} học sinh', style: TextStyle(color: Colors.blueGrey.shade700, fontWeight: FontWeight.bold, fontSize: 12))),
-                    const SizedBox(height: 10),
-                    const Text('Lịch dạy của bạn:', style: TextStyle(color: Colors.blueGrey, fontSize: 12, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(scheduleInfo, style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.5)),
-                    const SizedBox(height: 10),
-                  ],
-                ),
-                children: studentsInClass.map((student) {
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('students').where('className', isEqualTo: currentClass).snapshots(),
+                builder: (context, studentSnapshot) {
+                  if (!studentSnapshot.hasData) return const SizedBox.shrink();
+                  final studentsInClassDocs = studentSnapshot.data!.docs;
+
                   return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: CircleAvatar(backgroundColor: Colors.blueAccent.withOpacity(0.1), child: const Icon(Icons.person, color: Colors.blueAccent)),
-                        title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('Mã HS: ${student.id}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                        trailing: IconButton(
-                            icon: const Icon(Icons.stars, color: Colors.orange, size: 32),
-                            tooltip: 'Chấm điểm',
-                            onPressed: () => _showGradesBottomSheet(context, student, mySubjects)
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, 5))]),
+                    child: Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        initiallyExpanded: true,
+                        leading: CircleAvatar(backgroundColor: Colors.indigo.shade50, child: Icon(Icons.class_, color: Colors.indigo.shade400)),
+                        title: Text('Lớp: $currentClass', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.indigo.shade800, fontSize: 18)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 5),
+                            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.blueGrey.shade50, borderRadius: BorderRadius.circular(10)), child: Text('Sĩ số: ${studentsInClassDocs.length} học sinh', style: TextStyle(color: Colors.blueGrey.shade700, fontWeight: FontWeight.bold, fontSize: 12))),
+                            const SizedBox(height: 10),
+                            const Text('Lịch dạy của bạn:', style: TextStyle(color: Colors.blueGrey, fontSize: 12, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text(scheduleInfo, style: const TextStyle(color: Colors.black87, fontSize: 13, height: 1.5)),
+                            const SizedBox(height: 10),
+                          ],
                         ),
-                      )
+                        children: studentsInClassDocs.map((studentDoc) {
+                          var studentData = studentDoc.data() as Map<String, dynamic>;
+                          return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                leading: CircleAvatar(backgroundColor: Colors.blueAccent.withOpacity(0.1), child: const Icon(Icons.person, color: Colors.blueAccent)),
+                                title: Text(studentData['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Text('Mã HS: ${studentData['id']}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                trailing: IconButton(
+                                    icon: const Icon(Icons.stars, color: Colors.orange, size: 32),
+                                    tooltip: 'Chấm điểm',
+                                    onPressed: () => _showGradesBottomSheet(context, studentDoc.id, studentData['name'] ?? '', studentData['grades'] ?? {}, mySubjects)
+                                ),
+                              )
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   );
-                }).toList(),
-              ),
-            ),
-          );
-        },
-      ),
+                }
+              );
+            },
+          ),
+        );
+      }
     );
 
-    // TAB 2: LỊCH DẠY CỦA TÔI
+    // ================= TAB 2: LỊCH DẠY CỦA TÔI (FIREBASE) =================
     DateTime startOfWeek = _selectedDay!.subtract(Duration(days: _selectedDay!.weekday - 1));
     List<DateTime> weekDates = List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
 
-    Widget myScheduleTab = Column(
-      children: [
-        Container(
-          decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))]),
-          child: TableCalendar(
-            firstDay: DateTime.utc(2025, 1, 1), lastDay: DateTime.utc(2030, 12, 31),
-            focusedDay: _focusedDay, calendarFormat: _calendarFormat, startingDayOfWeek: StartingDayOfWeek.monday,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selectedDay, focusedDay) { setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; }); },
-            onFormatChanged: (format) { setState(() { _calendarFormat = format; }); },
-            onPageChanged: (focusedDay) { _focusedDay = focusedDay; },
-            calendarStyle: CalendarStyle(selectedDecoration: BoxDecoration(color: Colors.indigo.shade400, shape: BoxShape.circle), todayDecoration: BoxDecoration(color: Colors.indigo.shade200, shape: BoxShape.circle)),
-            headerStyle: HeaderStyle(formatButtonVisible: true, titleCentered: true, formatButtonDecoration: BoxDecoration(color: Colors.indigo.shade400, borderRadius: const BorderRadius.all(Radius.circular(12.0))), formatButtonTextStyle: const TextStyle(color: Colors.white)),
-          ),
-        ),
-        Expanded(child: _buildTimetableGrid(weekDates, myLessons)),
-      ],
+    Widget myScheduleTab = StreamBuilder<List<Lesson>>(
+      stream: _getMyLessons(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final myLessons = snapshot.data ?? [];
+
+        return Column(
+          children: [
+            Container(
+              decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))]),
+              child: TableCalendar(
+                firstDay: DateTime.utc(2025, 1, 1), lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: _focusedDay, calendarFormat: _calendarFormat, startingDayOfWeek: StartingDayOfWeek.monday,
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                onDaySelected: (selectedDay, focusedDay) { setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; }); },
+                onFormatChanged: (format) { setState(() { _calendarFormat = format; }); },
+                onPageChanged: (focusedDay) { _focusedDay = focusedDay; },
+                calendarStyle: CalendarStyle(selectedDecoration: BoxDecoration(color: Colors.indigo.shade400, shape: BoxShape.circle), todayDecoration: BoxDecoration(color: Colors.indigo.shade200, shape: BoxShape.circle)),
+                headerStyle: HeaderStyle(formatButtonVisible: true, titleCentered: true, formatButtonDecoration: BoxDecoration(color: Colors.indigo.shade400, borderRadius: const BorderRadius.all(Radius.circular(12.0))), formatButtonTextStyle: const TextStyle(color: Colors.white)),
+              ),
+            ),
+            Expanded(child: _buildTimetableGrid(weekDates, myLessons)),
+          ],
+        );
+      }
     );
 
-    final tabs = [myClassesTab, myScheduleTab];
+    final tabs = [myClassesTab, myScheduleTab, AssignmentTeacherScreen(teacher: widget.loggedInTeacher)];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),

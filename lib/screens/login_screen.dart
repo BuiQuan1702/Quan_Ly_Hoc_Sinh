@@ -1,6 +1,7 @@
 // lib/screens/login_screen.dart
-import 'dart:ui'; // Bắt buộc phải có để dùng hiệu ứng Kính mờ (BackdropFilter)
+import 'dart:ui'; 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Thêm Firebase
 import '../models/student.dart';
 import 'user_screen.dart';
 import 'admin_screen.dart';
@@ -17,25 +18,69 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _selectedRole = 'Học sinh';
+  bool _isLoading = false; // Trạng thái đang đăng nhập
 
-  void _login() {
+  Future<void> _login() async {
     String id = _idController.text.trim();
     String password = _passwordController.text.trim();
 
-    if (_selectedRole == 'Học sinh') {
-      try {
-        Student student = mockStudents.firstWhere((s) => s.id == id && s.password == password);
-        Navigator.push(context, MaterialPageRoute(builder: (context) => UserScreen(loggedInStudent: student)));
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sai Mã học sinh hoặc mật khẩu!'), backgroundColor: Colors.redAccent));
+    if (id.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin!')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (_selectedRole == 'Học sinh') {
+        // Tìm học sinh trong Firestore
+        var snapshot = await FirebaseFirestore.instance
+            .collection('students')
+            .where('id', isEqualTo: id)
+            .where('password', isEqualTo: password)
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          var data = snapshot.docs.first.data();
+          Student student = Student(
+            id: data['id'] ?? '',
+            name: data['name'] ?? '',
+            className: data['className'] ?? '',
+            password: data['password'] ?? '',
+          );
+          Navigator.push(context, MaterialPageRoute(builder: (context) => UserScreen(loggedInStudent: student)));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sai Mã học sinh hoặc mật khẩu!'), backgroundColor: Colors.redAccent));
+        }
+      } else if (_selectedRole == 'Giáo viên') {
+        // Tìm giáo viên trong Firestore
+        var snapshot = await FirebaseFirestore.instance
+            .collection('teachers')
+            .where('id', isEqualTo: id)
+            .where('password', isEqualTo: password)
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          var data = snapshot.docs.first.data();
+          Teacher teacher = Teacher(
+            id: data['id'] ?? '',
+            name: data['name'] ?? '',
+            phone: data['phone'] ?? '',
+            password: data['password'] ?? '',
+          );
+          Navigator.push(context, MaterialPageRoute(builder: (context) => TeacherScreen(loggedInTeacher: teacher)));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sai Mã giáo viên hoặc mật khẩu!'), backgroundColor: Colors.redAccent));
+        }
       }
-    } else if (_selectedRole == 'Giáo viên') {
-      try {
-        Teacher teacher = mockTeachers.firstWhere((t) => t.id == id && t.password == password);
-        Navigator.push(context, MaterialPageRoute(builder: (context) => TeacherScreen(loggedInTeacher: teacher)));
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sai Mã giáo viên hoặc mật khẩu!'), backgroundColor: Colors.redAccent));
-      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi kết nối: $e'), backgroundColor: Colors.redAccent),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
