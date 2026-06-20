@@ -1,5 +1,6 @@
 // lib/screens/edit_profile_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -131,16 +132,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    widget.student.name = _nameController.text;
-                    widget.student.password = _passwordController.text;
-                  });
+                onPressed: () async {
+                  try {
+                    // Cập nhật lên Firestore
+                    var snapshot = await FirebaseFirestore.instance
+                        .collection('students')
+                        .where('id', isEqualTo: widget.student.id)
+                        .get();
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Hồ sơ đã được cập nhật!'), backgroundColor: Colors.green),
-                  );
-                  Navigator.pop(context);
+                    if (snapshot.docs.isNotEmpty) {
+                      await snapshot.docs.first.reference.update({
+                        'name': _nameController.text,
+                        'password': _passwordController.text,
+                      });
+
+                      // Cập nhật object local để UI quay về hiển thị đúng (nếu cần)
+                      setState(() {
+                        widget.student.name = _nameController.text;
+                        widget.student.password = _passwordController.text;
+                      });
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Hồ sơ đã được cập nhật!'), backgroundColor: Colors.green),
+                      );
+                      Navigator.pop(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Không tìm thấy học sinh trên hệ thống!'), backgroundColor: Colors.redAccent),
+                      );
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Lỗi cập nhật: $e'), backgroundColor: Colors.redAccent),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,

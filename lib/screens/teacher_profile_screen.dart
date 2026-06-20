@@ -1,5 +1,6 @@
 // lib/screens/teacher_profile_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/student.dart'; // Import để lấy model Teacher
 
 class TeacherProfileScreen extends StatefulWidget {
@@ -128,18 +129,38 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  // Cập nhật dữ liệu vào model
-                  setState(() {
-                    widget.teacher.name = _nameController.text;
-                    widget.teacher.phone = _phoneController.text;
-                    widget.teacher.password = _passwordController.text;
-                  });
+                onPressed: () async {
+                  try {
+                    // Cập nhật lên Firestore bằng ID trực tiếp (document ID chính là Mã GV)
+                    await FirebaseFirestore.instance
+                        .collection('teachers')
+                        .doc(widget.teacher.id)
+                        .update({
+                      'name': _nameController.text,
+                      'phone': _phoneController.text,
+                      'password': _passwordController.text,
+                    });
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Hồ sơ Giáo viên đã được cập nhật!'), backgroundColor: Colors.blue),
-                  );
-                  Navigator.pop(context);
+                    // Cập nhật dữ liệu vào model local để UI hiển thị ngay lập tức
+                    setState(() {
+                      widget.teacher.name = _nameController.text;
+                      widget.teacher.phone = _phoneController.text;
+                      widget.teacher.password = _passwordController.text;
+                    });
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Hồ sơ Giáo viên đã được cập nhật!'), backgroundColor: Colors.blue),
+                      );
+                      Navigator.pop(context, true); // Trả về true để màn hình trước biết đã cập nhật
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lỗi cập nhật: $e'), backgroundColor: Colors.redAccent),
+                      );
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
