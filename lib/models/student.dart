@@ -22,8 +22,17 @@ class Lesson {
   String time;
   String className;
   String teacherName;
+  String? room;
 
-  Lesson({required this.id, required this.date, required this.subject, required this.time, required this.className, required this.teacherName});
+  Lesson({
+    required this.id,
+    required this.date,
+    required this.subject,
+    required this.time,
+    required this.className,
+    required this.teacherName,
+    this.room,
+  });
 }
 
 // ================= 4. DỮ LIỆU ĐƠN XIN NGHỈ PHÉP =================

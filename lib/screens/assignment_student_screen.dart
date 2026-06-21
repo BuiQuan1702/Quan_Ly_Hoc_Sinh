@@ -155,13 +155,41 @@ class _AssignmentStudentScreenState extends State<AssignmentStudentScreen> {
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Row(children: [Icon(statusIcon, size: 14, color: statusColor), const SizedBox(width: 4), Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12))])),
-                                Text('Hạn nộp: ${assignment['deadline'] ?? ''}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold)),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(statusIcon, size: 14, color: statusColor),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            statusText,
+                                            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Hạn nộp: ${assignment['deadline'] ?? ''}',
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text(assignment['title'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black87)),
+                            Text(
+                              assignment['title'] ?? '',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black87),
+                              softWrap: true,
+                            ),
                             const SizedBox(height: 6),
                             Text('Môn: ${assignment['subject'] ?? ''}  •  GV: ${assignment['teacherName'] ?? ''}', style: TextStyle(fontSize: 13, color: Colors.blueGrey.shade600)),
                           ],

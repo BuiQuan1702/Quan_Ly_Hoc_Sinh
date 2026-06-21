@@ -278,13 +278,28 @@ class _AssignmentTeacherScreenState extends State<AssignmentTeacherScreen> {
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text('Lớp ${assignment['className']} - ${assignment['subject']}', style: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold, fontSize: 12))),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(color: Colors.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                                    child: Text(
+                                      'Lớp ${assignment['className']} - ${assignment['subject']}',
+                                      style: const TextStyle(color: Colors.indigo, fontWeight: FontWeight.bold, fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
                                 Text('Đã nộp: $subCount', style: const TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold)),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text(assignment['title'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black87)),
+                            Text(
+                              assignment['title'] ?? '',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black87),
+                              softWrap: true,
+                            ),
                             const SizedBox(height: 6),
                             Text('Hạn nộp: ${assignment['deadline'] ?? ''}', style: TextStyle(fontSize: 13, color: Colors.redAccent.shade700, fontWeight: FontWeight.bold)),
                           ],

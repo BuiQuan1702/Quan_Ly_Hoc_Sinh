@@ -6,6 +6,7 @@ import 'teacher_profile_screen.dart';
 import 'leave_manage_teacher_screen.dart';
 import 'news_feed_screen.dart';
 import 'assignment_teacher_screen.dart';
+import 'events_admin_tab.dart'; // Thêm import này
 
 class TeacherScreen extends StatefulWidget {
   final Teacher loggedInTeacher;
@@ -487,7 +488,19 @@ class _TeacherScreenState extends State<TeacherScreen> {
           ],
         ),
         actions: [
-          // NÚT XEM BẢNG TIN THÔNG BÁO MỚI THÊM
+          // NÚT XEM SỰ KIỆN (MỚI THÊM)
+          IconButton(
+            icon: const Icon(Icons.event_note, color: Colors.white),
+            tooltip: 'Sự kiện & Lịch thi',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => Scaffold(
+                appBar: AppBar(title: const Text('Sự kiện & Lịch thi')),
+                body: EventsAdminTab(), // Bỏ const để tránh lỗi constructor
+              )));
+            },
+          ),
+          
+          // NÚT XEM BẢNG TIN THÔNG BÁO
           IconButton(
             icon: const Icon(Icons.newspaper, color: Colors.white),
             tooltip: 'Bảng tin nhà trường',
