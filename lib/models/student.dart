@@ -2,10 +2,10 @@
 
 // ================= 1. DỮ LIỆU HỌC SINH & ĐIỂM SỐ =================
 class Student {
-  String id; String name; String className; String password;
+  String id; String name; List<String> classNames; String password;
   Map<String, Map<String, List<double>>> grades;
 
-  Student({required this.id, required this.name, required this.className, required this.password, this.grades = const {}});
+  Student({required this.id, required this.name, required this.classNames, required this.password, this.grades = const {}});
 }
 
 // ================= 2. DỮ LIỆU GIÁO VIÊN =================

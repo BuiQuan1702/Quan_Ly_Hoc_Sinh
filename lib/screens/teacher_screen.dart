@@ -19,7 +19,8 @@ class TeacherScreen extends StatefulWidget {
 
 class _TeacherScreenState extends State<TeacherScreen> {
   int _currentIndex = 0;
-  final List<String> gradeTypes = ['Miệng / 15 Phút', '1 Tiết / Giữa Kỳ', 'Học Kỳ'];
+  final List<String> gradeTypes = ['Chuyên cần (10%)', 'Giữa Kỳ', 'Cuối Kỳ'];
+  final List<String> scoringMethods = ['Loại 1 (10-40-50)', 'Loại 2 (10-30-60)'];
 
   CalendarFormat _calendarFormat = CalendarFormat.week;
   DateTime _focusedDay = DateTime.now();
@@ -78,10 +79,16 @@ class _TeacherScreenState extends State<TeacherScreen> {
               return StatefulBuilder(
                   builder: (BuildContext context, StateSetter setModalState) {
                     return StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance.collection('students').where('className', isEqualTo: lesson.className).snapshots(),
+                      stream: FirebaseFirestore.instance.collection('students').snapshots(),
                       builder: (context, studentSnapshot) {
                         if (!studentSnapshot.hasData) return const Center(child: CircularProgressIndicator());
-                        final studentsInClass = studentSnapshot.data!.docs;
+                        
+                        // Lọc học sinh thuộc lớp này (Hỗ trợ cả cũ và mới)
+                        final studentsInClass = studentSnapshot.data!.docs.where((doc) {
+                          var data = doc.data() as Map<String, dynamic>;
+                          var classes = data['classNames'] as List? ?? [];
+                          return classes.contains(lesson.className) || data['className'] == lesson.className;
+                        }).toList();
 
                         return Container(
                           decoration: const BoxDecoration(
@@ -184,8 +191,68 @@ class _TeacherScreenState extends State<TeacherScreen> {
     );
   }
 
-  // ================= BẢNG ĐIỀU KHIỂN CHẤM ĐIỂM (FIREBASE) =================
-  void _showGradesBottomSheet(BuildContext context, String studentDocId, String studentName, Map<String, dynamic> existingGrades, List<String> subjectsTaught) {
+  // ================= BẢNG ĐIỀU KHIỂN CHẤM & SỬA ĐIỂM (FIREBASE) =================
+  void _showEditScoreDialog(BuildContext context, String docId, String name, Map<String, dynamic> allGrades, String subject, String type, int scoreIndex, double currentValue) {
+    TextEditingController editController = TextEditingController(text: currentValue.toString());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Sửa điểm môn: $subject', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Học sinh: $name', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text('Loại điểm: $type', style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: editController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Điểm số (0-10)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Map<String, dynamic> newGrades = Map.from(allGrades);
+              List<dynamic> scores = List.from(newGrades[subject][type]);
+              scores.removeAt(scoreIndex);
+              newGrades[subject][type] = scores;
+              await FirebaseFirestore.instance.collection('students').doc(docId).update({'grades': newGrades});
+              Navigator.pop(context);
+            },
+            child: const Text('Xóa điểm', style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () async {
+              double? sc = double.tryParse(editController.text);
+              if (sc != null && sc >= 0 && sc <= 10) {
+                Map<String, dynamic> newGrades = Map.from(allGrades);
+                List<dynamic> scores = List.from(newGrades[subject][type]);
+                scores[scoreIndex] = sc;
+                newGrades[subject][type] = scores;
+                await FirebaseFirestore.instance.collection('students').doc(docId).update({'grades': newGrades});
+                Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Điểm không hợp lệ!')));
+              }
+            },
+            child: const Text('Cập nhật', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGradesBottomSheet(BuildContext context, String studentDocId, String studentName, List<String> subjectsTaught) {
     if (subjectsTaught.isEmpty) subjectsTaught = ['Môn chung'];
     String selectedSubject = subjectsTaught.first;
     String selectedType = gradeTypes.first;
@@ -196,85 +263,199 @@ class _TeacherScreenState extends State<TeacherScreen> {
         builder: (BuildContext context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
-                return Padding(
-                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-                  child: Container(
-                    decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-                    child: FractionallySizedBox(
-                      heightFactor: 0.85,
-                      child: Column(
-                        children: [
-                          Container(margin: const EdgeInsets.only(top: 10), width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
-                          Padding(padding: const EdgeInsets.all(20.0), child: Text('Chấm điểm: $studentName', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.orange))),
-                          Container(
-                            padding: const EdgeInsets.all(20.0), margin: const EdgeInsets.symmetric(horizontal: 20),
-                            decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.orange.shade200)),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(child: DropdownButtonFormField<String>(value: selectedSubject, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, labelText: 'Môn'), items: subjectsTaught.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(), onChanged: (val) => setModalState(() => selectedSubject = val!))),
-                                    const SizedBox(width: 10),
-                                    Expanded(child: DropdownButtonFormField<String>(value: selectedType, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, labelText: 'Loại'), items: gradeTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12)))).toList(), onChanged: (val) => setModalState(() => selectedType = val!))),
-                                  ],
-                                ),
-                                const SizedBox(height: 15),
-                                Row(
-                                  children: [
-                                    Expanded(child: TextField(controller: scoreController, keyboardType: TextInputType.number, decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, labelText: 'Nhập điểm số (0-10)'))),
-                                    const SizedBox(width: 15),
-                                    ElevatedButton(
-                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15)),
-                                        onPressed: () async {
-                                          double? sc = double.tryParse(scoreController.text);
-                                          if (sc != null && sc >= 0 && sc <= 10) {
-                                            // Cấu trúc map điểm trên Firebase
-                                            Map<String, dynamic> newGrades = Map.from(existingGrades);
-                                            if (newGrades[selectedSubject] == null) {
-                                              newGrades[selectedSubject] = {'Miệng / 15 Phút': [], '1 Tiết / Giữa Kỳ': [], 'Học Kỳ': []};
-                                            }
-                                            List<dynamic> currentScores = List.from(newGrades[selectedSubject][selectedType] ?? []);
-                                            currentScores.add(sc);
-                                            newGrades[selectedSubject][selectedType] = currentScores;
+                return StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('students').doc(studentDocId).snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    
+                    var studentData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+                    Map<String, dynamic> currentGrades = studentData['grades'] ?? {};
+                    String selectedMethod = currentGrades[selectedSubject]?['scoringMethod'] ?? scoringMethods.first;
 
-                                            await FirebaseFirestore.instance.collection('students').doc(studentDocId).update({
-                                              'grades': newGrades
-                                            });
-                                            scoreController.clear();
-                                            Navigator.pop(context); // Đóng sau khi lưu
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã lưu điểm thành công!'), backgroundColor: Colors.green));
-                                          } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Điểm không hợp lệ!'), backgroundColor: Colors.redAccent));
-                                          }
-                                        },
-                                        child: const Text('Lưu điểm', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                      child: Container(
+                        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+                        child: FractionallySizedBox(
+                          heightFactor: 0.85,
+                          child: Column(
+                            children: [
+                              Container(margin: const EdgeInsets.only(top: 10), width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10))),
+                              Padding(padding: const EdgeInsets.all(20.0), child: Text('Chấm & Sửa điểm: $studentName', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.orange))),
+                              Container(
+                                padding: const EdgeInsets.all(20.0), margin: const EdgeInsets.symmetric(horizontal: 20),
+                                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.orange.shade200)),
+                                child: Column(
+                                  children: [
+                                    DropdownButtonFormField<String>(
+                                      isExpanded: true,
+                                      value: selectedSubject,
+                                      decoration: const InputDecoration(labelText: 'Chọn môn học', border: OutlineInputBorder()),
+                                      items: subjectsTaught.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                                      onChanged: (val) {
+                                        setModalState(() {
+                                          selectedSubject = val!;
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: DropdownButtonFormField<String>(
+                                            isExpanded: true,
+                                            value: selectedMethod,
+                                            decoration: const InputDecoration(labelText: 'Cách tính điểm', border: OutlineInputBorder()),
+                                            items: scoringMethods.map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12)))).toList(),
+                                            onChanged: (val) async {
+                                              Map<String, dynamic> newGrades = Map.from(currentGrades);
+                                              if (newGrades[selectedSubject] == null) {
+                                                newGrades[selectedSubject] = {
+                                                  'scoringMethod': val,
+                                                  'Chuyên cần (10%)': [],
+                                                  'Giữa Kỳ': [],
+                                                  'Cuối Kỳ': []
+                                                };
+                                              } else {
+                                                newGrades[selectedSubject]['scoringMethod'] = val;
+                                              }
+                                              await FirebaseFirestore.instance.collection('students').doc(studentDocId).update({'grades': newGrades});
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: DropdownButtonFormField<String>(
+                                            isExpanded: true,
+                                            value: selectedType,
+                                            decoration: const InputDecoration(labelText: 'Loại điểm', border: OutlineInputBorder()),
+                                            items: gradeTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12)))).toList(),
+                                            onChanged: (val) => setModalState(() => selectedType = val!),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 15),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            controller: scoreController,
+                                            keyboardType: TextInputType.number,
+                                            decoration: InputDecoration(
+                                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                              labelText: 'Nhập điểm số (0-10)',
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.orange,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                                            ),
+                                            onPressed: () async {
+                                              double? sc = double.tryParse(scoreController.text);
+                                              if (sc != null && sc >= 0 && sc <= 10) {
+                                                Map<String, dynamic> newGrades = Map.from(currentGrades);
+                                                if (newGrades[selectedSubject] == null) {
+                                                  newGrades[selectedSubject] = {
+                                                    'scoringMethod': selectedMethod,
+                                                    'Chuyên cần (10%)': [],
+                                                    'Giữa Kỳ': [],
+                                                    'Cuối Kỳ': []
+                                                  };
+                                                }
+                                                
+                                                List<dynamic> currentScores = List.from(newGrades[selectedSubject][selectedType] ?? []);
+                                                currentScores.add(sc);
+                                                newGrades[selectedSubject][selectedType] = currentScores;
+
+                                                await FirebaseFirestore.instance.collection('students').doc(studentDocId).update({
+                                                  'grades': newGrades
+                                                });
+                                                scoreController.clear();
+                                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã lưu điểm thành công!'), backgroundColor: Colors.green));
+                                              } else {
+                                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Điểm không hợp lệ!'), backgroundColor: Colors.redAccent));
+                                              }
+                                            },
+                                            child: const Text('Lưu điểm', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                                        )
+                                      ],
                                     )
                                   ],
-                                )
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 15),
-                          Expanded(
-                            child: existingGrades.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.assignment_outlined, size: 50, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('Chưa có điểm số nào', style: TextStyle(color: Colors.grey))])) : ListView(
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              children: existingGrades.entries.map((e) => Container(
-                                margin: const EdgeInsets.only(bottom: 10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                                child: Theme(
-                                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                                  child: ExpansionTile(
-                                      leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.book, color: Colors.white, size: 18)),
-                                      title: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      children: (e.value as Map<String, dynamic>).entries.map((te) => Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(te.key, style: TextStyle(color: Colors.grey.shade600)), Text((te.value as List).isEmpty ? '-' : (te.value as List).join(" | "), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))]))).toList()
-                                  ),
                                 ),
-                              )).toList(),
-                            ),
-                          )
-                        ],
+                              ),
+                              const SizedBox(height: 15),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                alignment: Alignment.centerLeft,
+                                child: const Text('Bấm vào điểm số để Sửa hoặc Xóa', style: TextStyle(fontSize: 12, color: Colors.blueGrey, fontStyle: FontStyle.italic)),
+                              ),
+                              const SizedBox(height: 5),
+                              Expanded(
+                                child: currentGrades.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.assignment_outlined, size: 50, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('Chưa có điểm số nào', style: TextStyle(color: Colors.grey))])) : ListView(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  children: currentGrades.entries.map((e) {
+                                    Map<String, dynamic> subjectData = e.value as Map<String, dynamic>;
+                                    String method = subjectData['scoringMethod'] ?? 'Chưa chọn';
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+                                      child: Theme(
+                                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                                        child: ExpansionTile(
+                                            leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.book, color: Colors.white, size: 18)),
+                                            title: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                            subtitle: Text('Cách tính: $method', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                                            children: subjectData.entries.where((entry) => entry.key != 'scoringMethod').map((te) {
+                                              List scores = te.value as List;
+                                              return Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Text(te.key, style: TextStyle(color: Colors.grey.shade600)),
+                                                    const SizedBox(width: 10),
+                                                    Expanded(
+                                                      child: Wrap(
+                                                        alignment: WrapAlignment.end,
+                                                        spacing: 8,
+                                                        runSpacing: 4,
+                                                        children: scores.asMap().entries.map((scoreEntry) {
+                                                          int scoreIdx = scoreEntry.key;
+                                                          double scoreVal = (scoreEntry.value as num).toDouble();
+                                                          return InkWell(
+                                                            onTap: () => _showEditScoreDialog(context, studentDocId, studentName, currentGrades, e.key, te.key, scoreIdx, scoreVal),
+                                                            child: Container(
+                                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.withOpacity(0.3))),
+                                                              child: Text(scoreVal.toString(), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                                                            ),
+                                                          );
+                                                        }).toList(),
+                                                      ),
+                                                    )
+                                                  ],
+                                                ),
+                                              );
+                                            }).toList()
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              )
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }
                 );
               }
           );
@@ -382,10 +563,16 @@ class _TeacherScreenState extends State<TeacherScreen> {
               if (scheduleInfo.isEmpty) scheduleInfo = 'Chưa phân bổ lịch';
 
               return StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('students').where('className', isEqualTo: currentClass).snapshots(),
+                stream: FirebaseFirestore.instance.collection('students').snapshots(),
                 builder: (context, studentSnapshot) {
                   if (!studentSnapshot.hasData) return const SizedBox.shrink();
-                  final studentsInClassDocs = studentSnapshot.data!.docs;
+                  
+                  // Lọc học sinh thuộc lớp này (Hỗ trợ cả cũ và mới)
+                  final studentsInClassDocs = studentSnapshot.data!.docs.where((doc) {
+                    var data = doc.data() as Map<String, dynamic>;
+                    var classes = data['classNames'] as List? ?? [];
+                    return classes.contains(currentClass) || data['className'] == currentClass;
+                  }).toList();
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 16),
@@ -421,7 +608,7 @@ class _TeacherScreenState extends State<TeacherScreen> {
                                 trailing: IconButton(
                                     icon: const Icon(Icons.stars, color: Colors.orange, size: 32),
                                     tooltip: 'Chấm điểm',
-                                    onPressed: () => _showGradesBottomSheet(context, studentDoc.id, studentData['name'] ?? '', studentData['grades'] ?? {}, mySubjects)
+                                    onPressed: () => _showGradesBottomSheet(context, studentDoc.id, studentData['name'] ?? '', mySubjects)
                                 ),
                               )
                           );

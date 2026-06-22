@@ -46,8 +46,15 @@ class _LeaveManageTeacherScreenState extends State<LeaveManageTeacherScreen> {
               if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
               
               final classRequests = snapshot.data?.docs ?? [];
-              // Sắp xếp đơn mới nhất lên đầu (Client side sorting nếu không có index composite trên Firestore)
-              final sortedRequests = List.from(classRequests)..sort((a, b) => (b.id).compareTo(a.id));
+              // Sắp xếp đơn mới nhất lên đầu theo createdAt (hoặc ID nếu không có timestamp)
+              final sortedRequests = List.from(classRequests)..sort((a, b) {
+                final aData = a.data() as Map<String, dynamic>;
+                final bData = b.data() as Map<String, dynamic>;
+                final aTime = aData['createdAt'] as Timestamp?;
+                final bTime = bData['createdAt'] as Timestamp?;
+                if (aTime != null && bTime != null) return bTime.compareTo(aTime);
+                return (b.id).compareTo(a.id);
+              });
 
               if (sortedRequests.isEmpty) {
                 return const Center(child: Text('Không có đơn xin nghỉ nào từ lớp bạn phụ trách.', style: TextStyle(color: Colors.grey)));
@@ -70,9 +77,15 @@ class _LeaveManageTeacherScreenState extends State<LeaveManageTeacherScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('${req['studentName']} - Lớp ${req['className']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              Expanded(
+                                child: Text(
+                                  '${req['studentName']} - Lớp ${req['className']}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),

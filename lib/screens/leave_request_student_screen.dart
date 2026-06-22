@@ -12,12 +12,12 @@ class LeaveRequestStudentScreen extends StatefulWidget {
 
 class _LeaveRequestStudentScreenState extends State<LeaveRequestStudentScreen> {
   // Hàm gửi đơn lên Firebase
-  Future<void> _submitRequest(String date, String reason) async {
+  Future<void> _submitRequest(String date, String reason, String className) async {
     try {
       await FirebaseFirestore.instance.collection('leave_requests').add({
         'studentId': widget.student.id,
         'studentName': widget.student.name,
-        'className': widget.student.className,
+        'className': className,
         'date': date,
         'reason': reason,
         'status': 'Chờ duyệt',
@@ -36,47 +36,62 @@ class _LeaveRequestStudentScreenState extends State<LeaveRequestStudentScreen> {
     DateTime chosenDate = DateTime.now();
     TextEditingController dateController = TextEditingController(
         text: "${chosenDate.day.toString().padLeft(2, '0')}/${chosenDate.month.toString().padLeft(2, '0')}/${chosenDate.year}");
+    
+    String? selectedClass = widget.student.classNames.isNotEmpty ? widget.student.classNames.first : null;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Viết đơn xin nghỉ', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: dateController, readOnly: true,
-                decoration: const InputDecoration(labelText: 'Ngày nghỉ', suffixIcon: Icon(Icons.calendar_today, color: Colors.green)),
-                onTap: () async {
-                  DateTime? picked = await showDatePicker(
-                      context: context, initialDate: chosenDate, firstDate: DateTime.now(), lastDate: DateTime(2030));
-                  if (picked != null) {
-                    setDialogState(() {
-                      chosenDate = picked;
-                      dateController.text = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 15),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(labelText: 'Lý do chi tiết', border: OutlineInputBorder()),
-                maxLines: 3,
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedClass,
+                  decoration: const InputDecoration(labelText: 'Chọn lớp nghỉ', border: OutlineInputBorder()),
+                  items: widget.student.classNames.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (val) => setDialogState(() => selectedClass = val),
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: dateController, readOnly: true,
+                  decoration: const InputDecoration(labelText: 'Ngày nghỉ', suffixIcon: Icon(Icons.calendar_today, color: Colors.green)),
+                  onTap: () async {
+                    DateTime? picked = await showDatePicker(
+                        context: context, initialDate: chosenDate, firstDate: DateTime.now(), lastDate: DateTime(2030));
+                    if (picked != null) {
+                      setDialogState(() {
+                        chosenDate = picked;
+                        dateController.text = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(labelText: 'Lý do chi tiết', border: OutlineInputBorder()),
+                  maxLines: 3,
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy', style: TextStyle(color: Colors.grey))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
               onPressed: () {
+                if (selectedClass == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn lớp!'), backgroundColor: Colors.red));
+                  return;
+                }
                 if (reasonController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập lý do!'), backgroundColor: Colors.red));
                   return;
                 }
-                _submitRequest(dateController.text, reasonController.text);
+                _submitRequest(dateController.text, reasonController.text, selectedClass!);
                 Navigator.pop(context);
               },
               child: const Text('Gửi đơn', style: TextStyle(color: Colors.white)),
@@ -115,6 +130,7 @@ class _LeaveRequestStudentScreenState extends State<LeaveRequestStudentScreen> {
               final date = req['date'] ?? '';
               final reason = req['reason'] ?? '';
               final status = req['status'] ?? 'Chờ duyệt';
+              final className = req['className'] ?? 'N/A';
               
               Color statusColor = status == 'Đã duyệt' ? Colors.green : (status == 'Từ chối' ? Colors.red : Colors.orange);
               
@@ -123,7 +139,14 @@ class _LeaveRequestStudentScreenState extends State<LeaveRequestStudentScreen> {
                 child: ListTile(
                   leading: Icon(Icons.assignment, color: statusColor, size: 30),
                   title: Text('Ngày nghỉ: $date', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Lý do: $reason\nTrạng thái: $status', style: const TextStyle(height: 1.5)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Lớp: $className', style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blueGrey)),
+                      Text('Lý do: $reason', style: const TextStyle(height: 1.2)),
+                      Text('Trạng thái: $status', style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                   isThreeLine: true,
                 ),
               );

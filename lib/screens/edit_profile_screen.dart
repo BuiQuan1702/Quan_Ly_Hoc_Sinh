@@ -23,7 +23,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     _idController = TextEditingController(text: widget.student.id);
     _nameController = TextEditingController(text: widget.student.name);
-    _classController = TextEditingController(text: widget.student.className);
+    _classController = TextEditingController(text: widget.student.classNames.join(', '));
     _passwordController = TextEditingController(text: widget.student.password);
   }
 
@@ -101,7 +101,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         Text(widget.student.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                         const Divider(color: Colors.white54),
                         const SizedBox(height: 5),
-                        Text('Lớp: ${widget.student.className}', style: const TextStyle(color: Colors.white, fontSize: 16)),
+                        Text('Lớp: ${widget.student.classNames.join(', ')}', style: const TextStyle(color: Colors.white, fontSize: 16)),
                         const SizedBox(height: 5),
                         Text('Mã HS: ${widget.student.id}', style: const TextStyle(color: Colors.white, fontSize: 16)),
                         const SizedBox(height: 15),

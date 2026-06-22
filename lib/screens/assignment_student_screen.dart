@@ -110,7 +110,7 @@ class _AssignmentStudentScreenState extends State<AssignmentStudentScreen> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('assignments')
-            .where('className', isEqualTo: widget.student.className)
+            .where('className', whereIn: widget.student.classNames)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());

@@ -44,10 +44,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (snapshot.docs.isNotEmpty) {
           var data = snapshot.docs.first.data();
+          
+          // Xử lý tương thích ngược cho classNames
+          List<String> classes = [];
+          if (data['classNames'] != null) {
+            classes = List<String>.from(data['classNames']);
+          } else if (data['className'] != null) {
+            classes = [data['className'].toString()];
+          }
+
           Student student = Student(
             id: data['id'] ?? '',
             name: data['name'] ?? '',
-            className: data['className'] ?? '',
+            classNames: classes,
             password: data['password'] ?? '',
           );
           Navigator.push(context, MaterialPageRoute(builder: (context) => UserScreen(loggedInStudent: student)));

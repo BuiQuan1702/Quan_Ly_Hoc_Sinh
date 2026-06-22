@@ -23,20 +23,51 @@ class _UserScreenState extends State<UserScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay = DateTime.now();
 
+  String? _selectedClassFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.loggedInStudent.classNames.isNotEmpty) {
+      _selectedClassFilter = widget.loggedInStudent.classNames.first;
+    }
+  }
+
   // Tạo Stream để lắng nghe danh sách bạn cùng lớp từ Firestore
   Stream<List<Student>> _getClassmates() {
     return FirebaseFirestore.instance
         .collection('students')
-        .where('className', isEqualTo: widget.loggedInStudent.className)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Student(
-                  id: doc['id'],
-                  name: doc['name'],
-                  className: doc['className'],
-                  password: doc['password'],
-                ))
-            .toList());
+        .map((snapshot) {
+          return snapshot.docs.where((doc) {
+            var data = doc.data();
+            
+            // Lấy danh sách lớp của bạn này (hỗ trợ cả cũ và mới)
+            List<String> studentClasses = [];
+            if (data['classNames'] != null) {
+              studentClasses = List<String>.from(data['classNames']);
+            } else if (data['className'] != null) {
+              studentClasses = [data['className'].toString()];
+            }
+            
+            // Lọc theo lớp đang chọn
+            return studentClasses.contains(_selectedClassFilter);
+          }).map((doc) {
+            var data = doc.data();
+            List<String> classes = [];
+            if (data['classNames'] != null) {
+              classes = List<String>.from(data['classNames']);
+            } else if (data['className'] != null) {
+              classes = [data['className'].toString()];
+            }
+            return Student(
+              id: data['id'],
+              name: data['name'],
+              classNames: classes,
+              password: data['password'],
+            );
+          }).toList();
+        });
   }
 
   // ================= BẢNG NHẬP MÃ ĐIỂM DANH (FIREBASE) =================
@@ -127,7 +158,7 @@ class _UserScreenState extends State<UserScreen> {
   Stream<List<Lesson>> _getTimetable() {
     return FirebaseFirestore.instance
         .collection('timetable')
-        .where('className', isEqualTo: widget.loggedInStudent.className)
+        .where('className', whereIn: widget.loggedInStudent.classNames)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Lesson(
@@ -258,33 +289,136 @@ class _UserScreenState extends State<UserScreen> {
         return Column(
           children: [
             Container(
-              width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
+              width: double.infinity, padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))]
+              ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('LỚP CỦA TÔI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.grey.shade500)),
-                  Text(widget.loggedInStudent.className, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.blueAccent)),
-                  Text('Sĩ số: ${classmates.length} học sinh', style: const TextStyle(fontSize: 14, color: Colors.blueGrey)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('LỚP CỦA TÔI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.grey.shade500)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+                        child: Text('${widget.loggedInStudent.classNames.length} lớp', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: widget.loggedInStudent.classNames.map((className) {
+                      bool isSelected = _selectedClassFilter == className;
+                      return InkWell(
+                        onTap: () => setState(() => _selectedClassFilter = className),
+                        borderRadius: BorderRadius.circular(12),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.blueAccent : Colors.blueAccent.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isSelected ? Colors.blueAccent : Colors.blueAccent.withOpacity(0.1)),
+                            boxShadow: isSelected ? [BoxShadow(color: Colors.blueAccent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : []
+                          ),
+                          child: Text(
+                            className, 
+                            style: TextStyle(
+                              fontSize: 13, 
+                              fontWeight: FontWeight.w600, 
+                              color: isSelected ? Colors.white : Colors.blueAccent
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.groups_rounded, size: 22, color: Colors.blueGrey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedClassFilter ?? 'Danh sách sinh viên', 
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Sinh viên: ${widget.loggedInStudent.name}',
+                          style: TextStyle(fontSize: 12, color: Colors.blueGrey.withOpacity(0.7)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: classmates.isEmpty 
                 ? const Center(child: Text('Không có dữ liệu học sinh trên Firebase'))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: classmates.length,
-                    itemBuilder: (context, index) => Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))]),
-                      child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                          leading: CircleAvatar(backgroundColor: Colors.blueAccent.withOpacity(0.1), child: const Icon(Icons.person, color: Colors.blueAccent)),
-                          title: Text(classmates[index].name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('Mã HS: ${classmates[index].id}', style: TextStyle(color: Colors.grey.shade600))
-                      ),
-                    ),
+                    itemBuilder: (context, index) {
+                      final student = classmates[index];
+                      final isMe = student.id == widget.loggedInStudent.id;
+                      
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.blue.shade50 : Colors.white, 
+                          borderRadius: BorderRadius.circular(16), 
+                          border: isMe ? Border.all(color: Colors.blueAccent.withOpacity(0.3)) : null,
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]
+                        ),
+                        child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: Hero(
+                              tag: 'avatar_${student.id}',
+                              child: CircleAvatar(
+                                radius: 25,
+                                backgroundColor: isMe ? Colors.blueAccent : Colors.blueAccent.withOpacity(0.1), 
+                                child: Text(
+                                  student.name.split(' ').last[0],
+                                  style: TextStyle(color: isMe ? Colors.white : Colors.blueAccent, fontWeight: FontWeight.bold),
+                                )
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                if (isMe) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(10)),
+                                    child: const Text('TÔI', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  ),
+                                ]
+                              ],
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text('Mã HS: ${student.id}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                            ),
+                            trailing: Icon(Icons.chevron_right, color: isMe ? Colors.blueAccent : Colors.grey.shade300),
+                        ),
+                      );
+                    },
                   ),
             ),
           ],
@@ -328,18 +462,28 @@ class _UserScreenState extends State<UserScreen> {
         Map<String, dynamic> grades = studentData['grades'] ?? {};
 
         double totalGpa = 0; int subjectCount = 0;
-        grades.forEach((subject, gradeTypes) {
-          Map<String, dynamic> types = gradeTypes as Map<String, dynamic>;
-          double sum15m = (types['Miệng / 15 Phút'] ?? []).fold(0.0, (prev, curr) => prev + (curr as num).toDouble());
-          int count15m = (types['Miệng / 15 Phút'] ?? []).length;
-          double sum1t = (types['1 Tiết / Giữa Kỳ'] ?? []).fold(0.0, (prev, curr) => prev + (curr as num).toDouble());
-          int count1t = (types['1 Tiết / Giữa Kỳ'] ?? []).length;
-          double sumHk = (types['Học Kỳ'] ?? []).fold(0.0, (prev, curr) => prev + (curr as num).toDouble());
-          int countHk = (types['Học Kỳ'] ?? []).length;
+        grades.forEach((subject, gradeData) {
+          Map<String, dynamic> data = gradeData as Map<String, dynamic>;
+          String method = data['scoringMethod'] ?? 'Loại 1 (10-40-50)';
           
-          int totalWeights = count15m * 1 + count1t * 2 + countHk * 3;
-          if (totalWeights > 0) {
-            double subjectAvg = (sum15m * 1 + sum1t * 2 + sumHk * 3) / totalWeights;
+          double wCc = 0.1;
+          double wGk = method.contains('40') ? 0.4 : 0.3;
+          double wCk = method.contains('50') ? 0.5 : 0.6;
+
+          // Hỗ trợ cả tên cột cũ và mới
+          List ccScores = (data['Chuyên cần (10%)'] ?? data['Miệng / 15 Phút'] ?? []) as List;
+          List gkScores = (data['Giữa Kỳ'] ?? data['1 Tiết / Giữa Kỳ'] ?? []) as List;
+          List ckScores = (data['Cuối Kỳ'] ?? data['Học Kỳ'] ?? []) as List;
+
+          if (ccScores.isNotEmpty || gkScores.isNotEmpty || ckScores.isNotEmpty) {
+            double avgCc = ccScores.isEmpty ? 0 : ccScores.fold(0.0, (p, c) => p + (c as num).toDouble()) / ccScores.length;
+            double avgGk = gkScores.isEmpty ? 0 : gkScores.fold(0.0, (p, c) => p + (c as num).toDouble()) / gkScores.length;
+            double avgCk = ckScores.isEmpty ? 0 : ckScores.fold(0.0, (p, c) => p + (c as num).toDouble()) / ckScores.length;
+            
+            // Tính trung bình môn theo trọng số (chuẩn hóa theo các cột có điểm)
+            double currentTotalWeight = (ccScores.isNotEmpty ? wCc : 0) + (gkScores.isNotEmpty ? wGk : 0) + (ckScores.isNotEmpty ? wCk : 0);
+            double subjectAvg = (avgCc * wCc + avgGk * wGk + avgCk * wCk) / currentTotalWeight;
+
             totalGpa += subjectAvg;
             subjectCount++;
           }
@@ -371,14 +515,26 @@ class _UserScreenState extends State<UserScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: grades.entries.map((entry) {
                   var types = entry.value as Map<String, dynamic>;
-                  double s15 = (types['Miệng / 15 Phút'] ?? []).fold(0.0, (p, c) => p + (c as num).toDouble());
-                  int c15 = (types['Miệng / 15 Phút'] ?? []).length;
-                  double s1t = (types['1 Tiết / Giữa Kỳ'] ?? []).fold(0.0, (p, c) => p + (c as num).toDouble());
-                  int c1t = (types['1 Tiết / Giữa Kỳ'] ?? []).length;
-                  double sHk = (types['Học Kỳ'] ?? []).fold(0.0, (p, c) => p + (c as num).toDouble());
-                  int cHk = (types['Học Kỳ'] ?? []).length;
-                  int wTotal = c15 * 1 + c1t * 2 + cHk * 3;
-                  double subAvg = wTotal > 0 ? (s15 * 1 + s1t * 2 + sHk * 3) / wTotal : 0.0;
+                  String method = types['scoringMethod'] ?? 'Loại 1 (10-40-50)';
+                  
+                  double wCc = 0.1;
+                  double wGk = method.contains('40') ? 0.4 : 0.3;
+                  double wCk = method.contains('50') ? 0.5 : 0.6;
+
+                  List ccScores = (types['Chuyên cần (10%)'] ?? types['Miệng / 15 Phút'] ?? []) as List;
+                  List gkScores = (types['Giữa Kỳ'] ?? types['1 Tiết / Giữa Kỳ'] ?? []) as List;
+                  List ckScores = (types['Cuối Kỳ'] ?? types['Học Kỳ'] ?? []) as List;
+
+                  double subAvg = 0;
+                  if (ccScores.isNotEmpty || gkScores.isNotEmpty || ckScores.isNotEmpty) {
+                    double avgCc = ccScores.isEmpty ? 0 : ccScores.fold(0.0, (p, c) => p + (c as num).toDouble()) / ccScores.length;
+                    double avgGk = gkScores.isEmpty ? 0 : gkScores.fold(0.0, (p, c) => p + (c as num).toDouble()) / gkScores.length;
+                    double avgCk = ckScores.isEmpty ? 0 : ckScores.fold(0.0, (p, c) => p + (c as num).toDouble()) / ckScores.length;
+                    
+                    double currentTotalWeight = (ccScores.isNotEmpty ? wCc : 0) + (gkScores.isNotEmpty ? wGk : 0) + (ckScores.isNotEmpty ? wCk : 0);
+                    subAvg = (avgCc * wCc + avgGk * wGk + avgCk * wCk) / currentTotalWeight;
+                  }
+
                   Color badgeColor = subAvg >= 8.0 ? Colors.green : (subAvg >= 5.0 ? Colors.orange : Colors.redAccent);
 
                   return Container(
@@ -389,15 +545,16 @@ class _UserScreenState extends State<UserScreen> {
                       child: ExpansionTile(
                         leading: CircleAvatar(backgroundColor: badgeColor.withOpacity(0.1), child: Icon(Icons.menu_book, color: badgeColor)),
                         title: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: badgeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(wTotal > 0 ? subAvg.toStringAsFixed(1) : '-', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: badgeColor))),
-                        children: types.entries.map((tEntry) {
+                        subtitle: Text('Cách tính: $method', style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                        trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: badgeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: Text(subAvg > 0 ? subAvg.toStringAsFixed(1) : '-', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: badgeColor))),
+                        children: types.entries.where((e) => e.key != 'scoringMethod').map((tEntry) {
                           List scores = tEntry.value as List;
                           return Padding(
                             padding: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(tEntry.key, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                                Expanded(child: Text(tEntry.key, style: TextStyle(fontSize: 14, color: Colors.grey.shade600))),
                                 Text(scores.isEmpty ? '-' : scores.join(", "), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                               ],
                             ),
@@ -424,7 +581,7 @@ class _UserScreenState extends State<UserScreen> {
             gradient: LinearGradient(colors: [Colors.blueAccent, Colors.lightBlueAccent], begin: Alignment.topLeft, end: Alignment.bottomRight),
           ),
         ),
-        title: Text('Hi, ${widget.loggedInStudent.name.split(' ').last} 👋', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Hi, ${widget.loggedInStudent.name} 👋', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           // NÚT XEM BẢNG TIN THÔNG BÁO MỚI THÊM
           IconButton(
