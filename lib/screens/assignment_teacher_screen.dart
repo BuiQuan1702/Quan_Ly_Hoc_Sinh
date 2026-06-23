@@ -50,12 +50,20 @@ class _AssignmentTeacherScreenState extends State<AssignmentTeacherScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Expanded(child: DropdownButtonFormField<String>(value: selectedClass, decoration: const InputDecoration(labelText: 'Lớp', border: OutlineInputBorder()), items: myClasses.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(), onChanged: (val) => setDialogState(() => selectedClass = val!))),
-                    const SizedBox(width: 10),
-                    Expanded(child: DropdownButtonFormField<String>(value: selectedSubject, decoration: const InputDecoration(labelText: 'Môn', border: OutlineInputBorder()), items: mySubjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(), onChanged: (val) => setDialogState(() => selectedSubject = val!))),
-                  ],
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  value: selectedClass, 
+                  decoration: const InputDecoration(labelText: 'Lớp', border: OutlineInputBorder()), 
+                  items: myClasses.map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(), 
+                  onChanged: (val) => setDialogState(() => selectedClass = val!)
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  value: selectedSubject, 
+                  decoration: const InputDecoration(labelText: 'Môn', border: OutlineInputBorder()), 
+                  items: mySubjects.map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(), 
+                  onChanged: (val) => setDialogState(() => selectedSubject = val!)
                 ),
                 const SizedBox(height: 10),
                 TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Tiêu đề bài tập', border: OutlineInputBorder())),

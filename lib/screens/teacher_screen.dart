@@ -399,9 +399,9 @@ class _TeacherScreenState extends State<TeacherScreen> {
                               ),
                               const SizedBox(height: 5),
                               Expanded(
-                                child: currentGrades.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.assignment_outlined, size: 50, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('Chưa có điểm số nào', style: TextStyle(color: Colors.grey))])) : ListView(
+                                child: (currentGrades.entries.where((e) => subjectsTaught.contains(e.key)).isEmpty) ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.assignment_outlined, size: 50, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('Chưa có điểm số nào cho các môn bạn dạy', style: TextStyle(color: Colors.grey))])) : ListView(
                                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  children: currentGrades.entries.map((e) {
+                                  children: currentGrades.entries.where((e) => subjectsTaught.contains(e.key)).map((e) {
                                     Map<String, dynamic> subjectData = e.value as Map<String, dynamic>;
                                     String method = subjectData['scoringMethod'] ?? 'Chưa chọn';
                                     return Container(
@@ -559,6 +559,7 @@ class _TeacherScreenState extends State<TeacherScreen> {
             itemBuilder: (context, classIndex) {
               String currentClass = myClasses[classIndex];
               List<Lesson> classLessons = myLessons.where((l) => l.className == currentClass).toList();
+              final classSubjects = classLessons.map((l) => l.subject).toSet().toList();
               String scheduleInfo = classLessons.map((l) => '• ${l.subject} (${_getWeekdayString(l.date)}, ${l.date} | ${l.time})').join('\n');
               if (scheduleInfo.isEmpty) scheduleInfo = 'Chưa phân bổ lịch';
 
@@ -608,7 +609,7 @@ class _TeacherScreenState extends State<TeacherScreen> {
                                 trailing: IconButton(
                                     icon: const Icon(Icons.stars, color: Colors.orange, size: 32),
                                     tooltip: 'Chấm điểm',
-                                    onPressed: () => _showGradesBottomSheet(context, studentDoc.id, studentData['name'] ?? '', mySubjects)
+                                    onPressed: () => _showGradesBottomSheet(context, studentDoc.id, studentData['name'] ?? '', classSubjects)
                                 ),
                               )
                           );
