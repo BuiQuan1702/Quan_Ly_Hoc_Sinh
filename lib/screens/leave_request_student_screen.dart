@@ -49,9 +49,13 @@ class _LeaveRequestStudentScreenState extends State<LeaveRequestStudentScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: selectedClass,
                   decoration: const InputDecoration(labelText: 'Chọn lớp nghỉ', border: OutlineInputBorder()),
-                  items: widget.student.classNames.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  items: widget.student.classNames.map((c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(c, overflow: TextOverflow.ellipsis),
+                  )).toList(),
                   onChanged: (val) => setDialogState(() => selectedClass = val),
                 ),
                 const SizedBox(height: 15),
